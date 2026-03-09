@@ -12,7 +12,13 @@ endif()
 project ("libarrier")
 
 # ソースをこのプロジェクトの実行可能ファイルに追加します。
-add_executable (libarrier "libarrier.cpp" "libarrier.h")
+add_executable (libarrier
+	"libarrier.cpp"
+	"libarrier.h"
+
+	"include/libarrier/arrier.hpp"
+	"include/libarrier/ringbuffer.hpp"
+)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET libarrier PROPERTY CXX_STANDARD 20)

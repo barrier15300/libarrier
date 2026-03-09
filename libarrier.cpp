@@ -3,10 +3,17 @@
 
 #include "libarrier.h"
 
-using namespace std;
+int main() {
+	
+	libarrier::Timer timer;
+	
+	timer.Start();
+	
+	while (timer.GetElapsed().Second() < 1) {}
 
-int main()
-{
-	cout << "Hello CMake." << endl;
+	timer.Stop();
+
+	std::cout << "Elapsed: " << timer.GetElapsed().CustomRatio(44100) << "\n";
+
 	return 0;
 }

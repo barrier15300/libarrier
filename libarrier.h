@@ -1,8 +1,6 @@
-﻿// libarrier.h : 標準のシステム インクルード ファイル用のインクルード ファイル、
-// または、プロジェクト専用のインクルード ファイル。
+﻿#pragma once
 
-#pragma once
+#include "include/libarrier/timer.hpp"
 
 #include <iostream>
 
-// TODO: プログラムに必要な追加ヘッダーをここで参照します。
