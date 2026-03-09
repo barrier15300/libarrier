@@ -84,6 +84,47 @@ public:
 	string_view At(size_t idx) const {
 		return m_lines.at(idx);
 	}
+
+	auto begin() -> decltype(std::begin(m_lines)) {
+		return std::begin(m_lines);
+	}
+	auto end() -> decltype(std::end(m_lines)) {
+		return std::end(m_lines);
+	}
+	auto begin() const -> decltype(std::begin(m_lines)) {
+		return std::begin(m_lines);
+	}
+	auto end() const -> decltype(std::end(m_lines)) {
+		return std::end(m_lines);
+	}
+	auto cbegin() const -> decltype(std::cbegin(m_lines)) {
+		return std::cbegin(m_lines);
+	}
+	auto cend() const -> decltype(std::cend(m_lines)) {
+		return std::cend(m_lines);
+	}
+	auto rbegin() -> decltype(std::rbegin(m_lines)) {
+		return std::rbegin(m_lines);
+	}
+	auto rend() -> decltype(std::rend(m_lines)) {
+		return std::rend(m_lines);
+	}
+	auto rbegin() const -> decltype(std::rbegin(m_lines)) {
+		return std::rbegin(m_lines);
+	}
+	auto rend() const -> decltype(std::rend(m_lines)) {
+		return std::rend(m_lines);
+	}
+	auto crbegin() const -> decltype(std::crbegin(m_lines)) {
+		return std::crbegin(m_lines);
+	}
+	auto crend() const -> decltype(std::crend(m_lines)) {
+		return std::crend(m_lines);
+	}
+
+	size_t find() const {
+		return 0; // TODO:
+	}
 };
 
 #endif // LIBARRIER_TEXTFILE_READER_HPP
