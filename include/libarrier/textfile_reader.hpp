@@ -7,141 +7,145 @@
 #include <string_view>
 #include <vector>
 
-template<class CharT>
-class basic_TextfileReader {
+namespace libarrier {
 
-	using string = std::basic_string<CharT>;
-	using string_view = std::basic_string_view<CharT>;
+	template<class CharT>
+	class basic_TextfileReader {
 
-	string m_data;
-	std::vector<string_view> m_lines;
+		using string = std::basic_string<CharT>;
+		using string_view = std::basic_string_view<CharT>;
 
-public:
+		string m_data;
+		std::vector<string_view> m_lines;
 
-	basic_TextfileReader() = default;
-	basic_TextfileReader(const string& path) {
-		Read(path);
-	}
+	public:
 
-	bool Read(const string& path) {
-		std::ifstream ifs(path, std::ios::binary | std::ios::ate);
-
-		if (!ifs.is_open()) {
-			return false;
+		basic_TextfileReader() = default;
+		basic_TextfileReader(const string& path) {
+			Read(path);
 		}
 
-		auto size = ifs.tellg();
-		ifs.seekg(0, std::ios::beg);
+		bool Read(const string& path) {
+			std::ifstream ifs(path, std::ios::binary | std::ios::ate);
 
-		m_data.resize(static_cast<size_t>(size));
-		ifs.read(m_data.data(), size);
+			if (!ifs.is_open()) {
+				return false;
+			}
 
-		ifs.close();
+			auto size = ifs.tellg();
+			ifs.seekg(0, std::ios::beg);
 
-		CreateIndex();
+			m_data.resize(static_cast<size_t>(size));
+			ifs.read(m_data.data(), size);
 
-		return true;
-	}
-	void CreateIndex() {
-		if (HasData()) {
-			return;
+			ifs.close();
+
+			CreateIndex();
+
+			return true;
+		}
+		void CreateIndex() {
+			if (HasData()) {
+				return;
+			}
+
+			auto begin = m_data.begin();
+			auto end = m_data.end();
+
+			using size_type = decltype(std::count(begin, end, ' '));
+
+			size_type nsize = std::count(begin, end, '\n');
+			size_type rsize = std::count(begin, end, '\r');
+
+			size_t endtypeindex =
+				(nsize == rsize) ? (0) :
+				((rsize == 0) ? (1) :
+					((nsize == 0) ? (2) : (3)));
+
+			constexpr string_view endcodetype[] = {
+				"\n\r",
+				"\n",
+				"\r"
+				""
+			};
+			size_type endlinecounts[] = {
+				nsize,
+				nsize,
+				rsize,
+				0
+			};
+
+			m_lines.reserve(endlinecounts[endtypeindex]);
+
+			string_view delim = endcodetype[endtypeindex];
+			string_view refdata = m_data;
+
+			size_t prev = delim.empty() ? string_view::npos : 0;
+			while (prev != string::npos) {
+				size_t idxbegin = prev;
+				size_t idxend = refdata.find(delim, prev);
+				prev = idxend + delim.size();
+
+				m_lines.push_back(refdata.substr(idxbegin, idxend));
+			}
 		}
 
-		auto begin = m_data.begin();
-		auto end = m_data.end();
-
-		using size_type = decltype(std::count(begin, end, ' '));
-
-		size_type nsize = std::count(begin, end, '\n');
-		size_type rsize = std::count(begin, end, '\r');
-
-		size_t endtypeindex = 
-			(nsize == rsize) ? (0) :
-			((rsize == 0) ? (1) :
-			((nsize == 0) ? (2) : (3)));
-
-		constexpr string_view endcodetype[] = {
-			"\n\r",
-			"\n",
-			"\r"
-			""
-		};
-		size_type endlinecounts[] = {
-			nsize,
-			nsize,
-			rsize,
-			0
-		};
-
-		m_lines.reserve(endlinecounts[endtypeindex]);
-
-		string_view delim = endcodetype[endtypeindex];
-		string_view refdata = m_data;
-
-		size_t prev = delim.empty() ? string_view::npos : 0;
-		while (prev != string::npos) {
-			size_t idxbegin = prev;
-			size_t idxend = refdata.find(delim, prev);
-			prev = idxend + delim.size();
-			
-			m_lines.push_back(refdata.substr(idxbegin, idxend));
+		bool HasData() const {
+			return m_data.empty();
 		}
-	}
+		operator bool() const {
+			return HasData();
+		}
 
-	bool HasData() const {
-		return m_data.empty();
-	}
-	operator bool() const {
-		return HasData();
-	}
-	
-	string_view operator[](size_t idx) const noexcept {
-		return m_lines[idx];
-	}
-	string_view at(size_t idx) const {
-		return m_lines.at(idx);
-	}
+		string_view operator[](size_t idx) const noexcept {
+			return m_lines[idx];
+		}
+		string_view at(size_t idx) const {
+			return m_lines.at(idx);
+		}
 
-	auto begin() -> decltype(std::begin(m_lines)) {
-		return std::begin(m_lines);
-	}
-	auto end() -> decltype(std::end(m_lines)) {
-		return std::end(m_lines);
-	}
-	auto begin() const -> decltype(std::begin(m_lines)) {
-		return std::begin(m_lines);
-	}
-	auto end() const -> decltype(std::end(m_lines)) {
-		return std::end(m_lines);
-	}
-	auto cbegin() const -> decltype(std::cbegin(m_lines)) {
-		return std::cbegin(m_lines);
-	}
-	auto cend() const -> decltype(std::cend(m_lines)) {
-		return std::cend(m_lines);
-	}
-	auto rbegin() -> decltype(std::rbegin(m_lines)) {
-		return std::rbegin(m_lines);
-	}
-	auto rend() -> decltype(std::rend(m_lines)) {
-		return std::rend(m_lines);
-	}
-	auto rbegin() const -> decltype(std::rbegin(m_lines)) {
-		return std::rbegin(m_lines);
-	}
-	auto rend() const -> decltype(std::rend(m_lines)) {
-		return std::rend(m_lines);
-	}
-	auto crbegin() const -> decltype(std::crbegin(m_lines)) {
-		return std::crbegin(m_lines);
-	}
-	auto crend() const -> decltype(std::crend(m_lines)) {
-		return std::crend(m_lines);
-	}
+		auto begin() -> decltype(std::begin(m_lines)) {
+			return std::begin(m_lines);
+		}
+		auto end() -> decltype(std::end(m_lines)) {
+			return std::end(m_lines);
+		}
+		auto begin() const -> decltype(std::begin(m_lines)) {
+			return std::begin(m_lines);
+		}
+		auto end() const -> decltype(std::end(m_lines)) {
+			return std::end(m_lines);
+		}
+		auto cbegin() const -> decltype(std::cbegin(m_lines)) {
+			return std::cbegin(m_lines);
+		}
+		auto cend() const -> decltype(std::cend(m_lines)) {
+			return std::cend(m_lines);
+		}
+		auto rbegin() -> decltype(std::rbegin(m_lines)) {
+			return std::rbegin(m_lines);
+		}
+		auto rend() -> decltype(std::rend(m_lines)) {
+			return std::rend(m_lines);
+		}
+		auto rbegin() const -> decltype(std::rbegin(m_lines)) {
+			return std::rbegin(m_lines);
+		}
+		auto rend() const -> decltype(std::rend(m_lines)) {
+			return std::rend(m_lines);
+		}
+		auto crbegin() const -> decltype(std::crbegin(m_lines)) {
+			return std::crbegin(m_lines);
+		}
+		auto crend() const -> decltype(std::crend(m_lines)) {
+			return std::crend(m_lines);
+		}
 
-	size_t find() const {
-		return 0; // TODO:
-	}
-};
+		size_t find() const {
+			return 0; // TODO:
+		}
+	};
+
+}
 
 #endif // LIBARRIER_TEXTFILE_READER_HPP
