@@ -50,22 +50,39 @@ public:
 		auto begin = m_data.begin();
 		auto end = m_data.end();
 
-		auto nsize = std::count(begin, end, '\n');
-		auto rsize = std::count(begin, end, '\r');
+		using size_type = decltype(std::count(begin, end, ' '));
 
-		m_lines.resize(nsize);
+		size_type nsize = std::count(begin, end, '\n');
+		size_type rsize = std::count(begin, end, '\r');
 
-		string_view delim = 
-			(nsize == rsize) ? ("\n\r") :
-			((rsize == 0) ? ("\n") :
-			((nsize == 0) ? ("\r") : ("")));
+		size_t endtypeindex = 
+			(nsize == rsize) ? (0) :
+			((rsize == 0) ? (1) :
+			((nsize == 0) ? (2) : (3)));
+
+		constexpr string_view endcodetype[] = {
+			"\n\r",
+			"\n",
+			"\r"
+			""
+		};
+		size_type endlinecounts[] = {
+			nsize,
+			nsize,
+			rsize,
+			0
+		};
+
+		m_lines.reserve(endlinecounts[endtypeindex]);
+
+		string_view delim = endcodetype[endtypeindex];
 		string_view refdata = m_data;
 
 		size_t prev = delim.empty() ? string_view::npos : 0;
 		while (prev != string::npos) {
 			size_t idxbegin = prev;
-			size_t idxend = m_data.find(delim, idxend + 1);
-			prev = idxend;
+			size_t idxend = refdata.find(delim, prev);
+			prev = idxend + delim.size();
 			
 			m_lines.push_back(refdata.substr(idxbegin, idxend));
 		}
