@@ -98,7 +98,7 @@ public:
 	string_view operator[](size_t idx) const noexcept {
 		return m_lines[idx];
 	}
-	string_view At(size_t idx) const {
+	string_view at(size_t idx) const {
 		return m_lines.at(idx);
 	}
 
