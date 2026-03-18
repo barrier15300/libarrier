@@ -6,6 +6,8 @@
 #include <utility>
 #include <memory>
 #include <mutex>
+#include <vector>
+#include <tuple>
 
 namespace libarrier {
 
@@ -86,7 +88,7 @@ namespace libarrier {
 		using const_member_func = R(C::*)(Args...) const;
 
 		using Object = void*;
-		using Callback = R(*)(Object, Args&&...);
+		using Callback = R(*)(Object, Args...);
 		
 		Object m_obj = nullptr;
 		Callback m_callback = nullptr;
@@ -100,7 +102,7 @@ namespace libarrier {
 		template<typename F>
 		static constexpr bool convertible_to_func_pointer = requires(F obj) {
 			{ obj } -> std::convertible_to<func_ptr>;
-		}
+		};
 
 		function() = delete;
 		function(const function&) = default;
@@ -109,23 +111,17 @@ namespace libarrier {
 		function& operator=(function&&) = default;
 
 		function(func_ptr func) {
-			m_obj = static_cast<Object>(func);
-			m_callback = [](Object obj, Args&&... args) -> R {
-				return static_cast<R(*)(Args...)>(obj)(std::forward<Args>(args)...);
+			m_obj = reinterpret_cast<Object>(func);
+			m_callback = [](Object obj, Args... args) -> R {
+				return reinterpret_cast<func_ptr>(obj)(std::forward<Args>(args)...);
 			};
 		}
 		template<typename F>
-		function(F&& fn_obj) requires (convertible_to_func_pointer<F>)
-		{
-			m_obj = static_cast<Object>(store_lambda(std::forward<F>(fn_obj)));
-			m_callback = [](Object obj, Args&&... args) -> R {
-				return std::invoke(*static_cast<F*>(obj), std::forward<Args>(args)...);
-			};
-		}
+		function(F&& fn_obj) requires (convertible_to_func_pointer<F>) : function(static_cast<func_ptr>(fn_obj)) {}
 		template<typename F>
 		function(F& fn_obj) requires (func_object<F>) {
 			m_obj = static_cast<Object>(std::addressof(fn_obj));
-			m_callback = [](Object obj, Args&&... args) -> R {
+			m_callback = [](Object obj, Args... args) -> R {
 				return std::invoke(*static_cast<F*>(obj), std::forward<Args>(args)...);
 			};
 		}
@@ -133,21 +129,21 @@ namespace libarrier {
 		function(F&& fn_obj) requires (func_object<F> && !convertible_to_func_pointer<F>)
 		{
 			m_obj = static_cast<Object>(store_lambda(std::forward<F>(fn_obj)));
-			m_callback = [](Object obj, Args&&... args) -> R {
+			m_callback = [](Object obj, Args... args) -> R {
 				return std::invoke(*static_cast<F*>(obj), std::forward<Args>(args)...);
 			};
 		}
 		template<typename C>
 		function(C& obj, member_func<C> mem_fn) {
 			auto pobj = std::addressof(obj);
-			*this = function([pobj, mem_fn](Args&&... args) -> R {
+			*this = function([pobj, mem_fn](Args... args) -> R {
 				return (pobj->*mem_fn)(std::forward<Args>(args)...);
 			});
 		}
 		template<typename C>
 		function(const C& obj, const_member_func<C> mem_fn) {
 			auto pobj = std::addressof(obj);
-			*this = function([pobj, mem_fn](Args&&... args) -> R {
+			*this = function([pobj, mem_fn](Args... args) -> R {
 				return (pobj->*mem_fn)(std::forward<Args>(args)...);
 			});
 		}
