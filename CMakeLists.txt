@@ -20,6 +20,7 @@ add_executable (libarrier
 	"include/libarrier/ringbuffer.hpp"
 	"include/libarrier/timer.hpp"
 	"include/libarrier/textfile_reader.hpp"
+	"include/libarrier/functional.hpp"
 )
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
