@@ -8,6 +8,7 @@
 #include <mutex>
 #include <vector>
 #include <tuple>
+#include <variant>
 
 namespace libarrier {
 
@@ -82,15 +83,11 @@ namespace libarrier {
 	class function<R(Args...)> : function_base {
 
 		using func_ptr = R(*)(Args...);
-		template<typename C>
-		using member_func = R(C::*)(Args...);
-		template<typename C>
-		using const_member_func = R(C::*)(Args...) const;
-
 		using Object = void*;
-		using Callback = R(*)(Object, Args...);
+		using Storage = std::variant<std::nullptr_t, func_ptr, Object>;
+		using Callback = R(*)(Storage, Args...);
 		
-		Object m_obj = nullptr;
+		Storage m_obj = nullptr;
 		Callback m_callback = nullptr;
 
 	public:
@@ -111,9 +108,9 @@ namespace libarrier {
 		function& operator=(function&&) = default;
 
 		function(func_ptr func) {
-			m_obj = reinterpret_cast<Object>(func);
-			m_callback = [](Object obj, Args... args) -> R {
-				return reinterpret_cast<func_ptr>(obj)(std::forward<Args>(args)...);
+			m_obj = func;
+			m_callback = [](Storage obj, Args... args) -> R {
+				return std::get<func_ptr>(obj)(std::forward<Args>(args)...);
 			};
 		}
 		template<typename F>
@@ -121,39 +118,59 @@ namespace libarrier {
 		template<typename F>
 		function(F& fn_obj) requires (func_object<F>) {
 			m_obj = static_cast<Object>(std::addressof(fn_obj));
-			m_callback = [](Object obj, Args... args) -> R {
-				return std::invoke(*static_cast<F*>(obj), std::forward<Args>(args)...);
+			m_callback = [](Storage obj, Args... args) -> R {
+				return std::invoke(*static_cast<F*>(std::get<Object>(obj)), std::forward<Args>(args)...);
 			};
 		}
 		template<typename F>
-		function(F&& fn_obj) requires (func_object<F> && !convertible_to_func_pointer<F>)
-		{
-			m_obj = static_cast<Object>(store_lambda(std::forward<F>(fn_obj)));
-			m_callback = [](Object obj, Args... args) -> R {
-				return std::invoke(*static_cast<F*>(obj), std::forward<Args>(args)...);
-			};
-		}
-		template<typename C>
-		function(C& obj, member_func<C> mem_fn) {
-			auto pobj = std::addressof(obj);
-			*this = function([pobj, mem_fn](Args... args) -> R {
-				return (pobj->*mem_fn)(std::forward<Args>(args)...);
-			});
-		}
-		template<typename C>
-		function(const C& obj, const_member_func<C> mem_fn) {
-			auto pobj = std::addressof(obj);
-			*this = function([pobj, mem_fn](Args... args) -> R {
-				return (pobj->*mem_fn)(std::forward<Args>(args)...);
-			});
-		}
-		template<typename C>
-		function(std::pair<C&, member_func<C>> pair) : function(pair.first, pair.second) {}
-		template<typename C>
-		function(std::pair<const C&, const_member_func<C>> pair) : function(pair.first, pair.second) {}
-
+		function(F&& fn_obj) requires (func_object<F> && !convertible_to_func_pointer<F>) : function(*store_lambda(std::forward<F>(fn_obj))) {}
+		
 		R operator()(Args&&... args) const {
 			return m_callback(m_obj, std::forward<Args>(args)...);
+		}
+	};
+	
+	template<typename R, typename C, typename... Args>
+	class function<R(C::*)(Args...)> {
+
+		using member_func = R(C::*)(Args...);
+		using const_member_func = R(C::*)(Args...) const;
+
+		using Object = std::variant<std::nullptr_t, C*, const C*>;
+		using Func = std::variant<std::nullptr_t, member_func, const_member_func>;
+		using Callback = R(*)(Object, Func, Args...);
+
+		Object m_obj = nullptr;
+		Func m_func = nullptr;
+		Callback m_callback = nullptr;
+
+	public:
+
+		function() = delete;
+		function(const function&) = default;
+		function(function&&) = default;
+		function& operator=(const function&) = default;
+		function& operator=(function&&) = default;
+
+		function(C& obj, member_func mem_fn) {
+			m_obj = std::addressof(obj);
+			m_func = mem_fn;
+			m_callback = [](Object obj, Func fn, Args... args) -> R {
+				return (std::get<C*>(obj)->*std::get<member_func>(fn))(std::forward<Args>(args)...);
+			};
+		}
+		function(const C& obj, const_member_func mem_fn) {
+			m_obj = std::addressof(obj);
+			m_func = mem_fn;
+			m_callback = [](Object obj, Func fn, Args... args) -> R {
+				return (std::get<const C*>(obj)->*std::get<const_member_func>(fn))(std::forward<Args>(args)...);
+			};
+		}
+		function(std::pair<C&, member_func> pair) : function(pair.first, pair.second) {}
+		function(std::pair<const C&, const_member_func> pair) : function(pair.first, pair.second) {}
+
+		R operator()(Args... args) const {
+			return m_callback(m_obj, m_func, std::forward<Args>(args)...);
 		}
 	};
 
@@ -162,16 +179,16 @@ namespace libarrier {
 	function(R(*)(Args...)) -> function<R(Args...)>;
 
 	template<typename R, typename C, typename... Args>
-	function(C, R(C::*)(Args...)) -> function<R(Args...)>;
+	function(C, R(C::*)(Args...)) -> function<R(C::*)(Args...)>;
 
 	template<typename R, typename C, typename... Args>
-	function(C, R(C::*)(Args...) const) -> function<R(Args...)>;
+	function(C, R(C::*)(Args...) const) -> function<R(C::*)(Args...)>;
 
 	template<typename R, typename C, typename... Args>
-	function(std::pair<C, R(C::*)(Args...)>) -> function<R(Args...)>;
+	function(std::pair<C, R(C::*)(Args...)>) -> function<R(C::*)(Args...)>;
 
 	template<typename R, typename C, typename... Args>
-	function(std::pair<const C, R(C::*)(Args...) const>) -> function<R(Args...)>;
+	function(std::pair<const C, R(C::*)(Args...) const>) -> function<R(C::*)(Args...)>;
 
 	template<typename F>
 	function(F) -> function<typename function_traits<F>::func_type>;
