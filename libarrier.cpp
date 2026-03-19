@@ -1,7 +1,4 @@
-﻿// libarrier.cpp : アプリケーションのエントリ ポイントを定義します。
-//
-
-#include "libarrier.h"
+﻿#include "libarrier.h"
 
 struct Functor {
 	int v = 3;
@@ -27,7 +24,7 @@ void func(int a) {
 
 int main() {
 	using namespace libarrier;
-	
+
 	int b = 16;
 
 	function f1 = func;
