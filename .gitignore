@@ -41,3 +41,11 @@
 *.dwo
 /.vs
 /out
+compile_commands.json
+.cache/clangd/index/arrier.hpp.ED4B96599DB7CF84.idx
+.cache/clangd/index/functional.hpp.368FBEBD51DD8795.idx
+.cache/clangd/index/libarrier.cpp.20B8C9DEC27E5102.idx
+.cache/clangd/index/libarrier.h.0383859F0D7FD3A3.idx
+.cache/clangd/index/ringbuffer.hpp.501A7C96451B628A.idx
+.cache/clangd/index/textfile_reader.hpp.F82AA5EA36D7C839.idx
+.cache/clangd/index/timer.hpp.914DBFAA4BE42D2D.idx
