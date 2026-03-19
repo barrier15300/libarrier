@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "include/libarrier/timer.hpp"
+#include "include/libarrier/arrier.hpp"
 
 #include <iostream>
 
