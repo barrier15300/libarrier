@@ -31,6 +31,8 @@ public:
 		auto size = ifs.tellg();
 		ifs.seekg(0, std::ios::beg);
 
+		if (size < 0) { return false; }
+
 		m_data.resize(static_cast<size_t>(size));
 		ifs.read(m_data.data(), size);
 
