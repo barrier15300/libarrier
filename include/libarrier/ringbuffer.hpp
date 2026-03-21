@@ -60,10 +60,10 @@ public:
 		return reverse_iterator(this->begin());
 	}
 	constexpr const_reverse_iterator rbegin() const noexcept {
-		return const_reverse_iterator(this->begin());
+		return const_reverse_iterator(this->end());
 	}
 	constexpr const_reverse_iterator rend() const noexcept {
-		return const_reverse_iterator(this->end());
+		return const_reverse_iterator(this->begin());
 	}
 	constexpr const_reverse_iterator crbegin() const noexcept {
 		return this->rbegin();
@@ -150,6 +150,12 @@ private:
 		} else {
 			return;
 		}
+			if (!(++m_current_size < size())) {
+				m_current_size = size() - 1;
+			}
+			else {
+				return;
+			}
 
 		++m_index %= buffer_size();
 	}
