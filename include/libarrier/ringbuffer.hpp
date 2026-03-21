@@ -145,12 +145,11 @@ private:
 	constexpr void write_back_impl(fT&& v) noexcept {
 		(*this)[m_current_size] = std::forward<fT>(v);
 
-			if (++m_current_size >= size()) {
-				m_current_size = size() - 1;
-			}
-			else {
-				return;
-			}
+		if (++m_current_size >= buffer_size()) {
+			m_current_size = buffer_size() - 1;
+		} else {
+			return;
+		}
 
 		++m_index %= buffer_size();
 	}

@@ -1,7 +1,8 @@
 #ifndef LIBARRIER_FUNCTIONAL_HPP
 #define LIBARRIER_FUNCTIONAL_HPP
 
-#include <type_traits>
+#include <concepts>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <mutex>
