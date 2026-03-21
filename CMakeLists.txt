@@ -18,6 +18,7 @@ add_executable (libarrier
 
 	"include/libarrier/arrier.hpp"
 	"include/libarrier/ringbuffer.hpp"
+	"include/libarrier/task.hpp"
 	"include/libarrier/timer.hpp"
 	"include/libarrier/textfile_reader.hpp"
 	"include/libarrier/functional.hpp"
