@@ -1,6 +1,7 @@
 #ifndef LIBARRIER_FUNCTIONAL_HPP
 #define LIBARRIER_FUNCTIONAL_HPP
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -83,12 +84,20 @@ class function;
 
 template<typename R, typename... Args>
 class function<R(Args...)> : function_base {
+	template<typename C>
+	using member_func = R (C::*)(Args...);
+	template<typename C>
+	using const_member_func = R (C::*)(Args...) const;
 	using func_ptr = R (*)(Args...);
-	using Object = void*;
-	using Storage = std::variant<std::nullptr_t, func_ptr, Object>;
-	using Callback = R (*)(Storage, Args...);
 
-	Storage m_obj = nullptr;
+	union Object {
+		std::nullptr_t null = nullptr;
+		func_ptr func;
+		void* obj;
+		const void* const_obj;
+	} m_obj{};
+
+	using Callback = R (*)(Object, Args...);
 	Callback m_callback = nullptr;
 
 public:
@@ -109,28 +118,45 @@ public:
 	function& operator=(function&&) = default;
 
 	function(func_ptr func) {
-		m_obj = func;
-		m_callback = [](Storage obj, Args... args) -> R {
-			return std::get<func_ptr>(obj)(std::forward<Args>(args)...);
+		m_obj.func = func;
+		m_callback = [](Object obj, Args... args) -> R {
+			return obj.func(std::forward<Args>(args)...);
 		};
 	}
 	template<typename F>
 	function(F&& fn_obj)
-		requires(convertible_to_func_pointer<F>)
+		requires(func_object<F> && convertible_to_func_pointer<F>)
 		: function(static_cast<func_ptr>(fn_obj)) {}
 	template<typename F>
 	function(F& fn_obj)
 		requires(func_object<F>)
 	{
-		m_obj = static_cast<Object>(std::addressof(fn_obj));
-		m_callback = [](Storage obj, Args... args) -> R {
-			return std::invoke(*static_cast<F*>(std::get<Object>(obj)), std::forward<Args>(args)...);
+		m_obj.obj = static_cast<void*>(std::addressof(fn_obj));
+		m_callback = [](Object obj, Args... args) -> R {
+			return (*static_cast<F*>(obj.obj))(std::forward<Args>(args)...);
+		};
+	}
+	template<typename F>
+	function(const F& fn_obj)
+		requires(func_object<F>)
+	{
+		m_obj.const_obj = static_cast<const void*>(std::addressof(fn_obj));
+		m_callback = [](Object obj, Args... args) -> R {
+			return (*static_cast<const F*>(obj.const_obj))(std::forward<Args>(args)...);
 		};
 	}
 	template<typename F>
 	function(F&& fn_obj)
 		requires(func_object<F> && !convertible_to_func_pointer<F>)
 		: function(*store_lambda(std::forward<F>(fn_obj))) {}
+
+	template<typename C>
+	function(C& obj, std::conditional_t<std::is_const_v<C>, member_func<C>, const_member_func<C>> fn) {
+		auto pobj = std::addressof(obj);
+		*this = function([pobj, fn](Args... args) {
+			return (pobj->*fn)(std::forward<Args>(args)...);
+		});
+	}
 
 	R operator()(Args&&... args) const {
 		return m_callback(m_obj, std::forward<Args>(args)...);
@@ -142,12 +168,17 @@ class function<R (C::*)(Args...)> {
 	using member_func = R (C::*)(Args...);
 	using const_member_func = R (C::*)(Args...) const;
 
-	using Object = std::variant<std::nullptr_t, C*, const C*>;
-	using Func = std::variant<std::nullptr_t, member_func, const_member_func>;
+	union Object {
+		std::nullptr_t null = nullptr;
+		C* obj;
+		const C* const_obj;
+	} m_obj{};
+	union Func {
+		std::nullptr_t null = nullptr;
+		member_func func;
+		const_member_func const_func;
+	} m_func{};
 	using Callback = R (*)(Object, Func, Args...);
-
-	Object m_obj = nullptr;
-	Func m_func = nullptr;
 	Callback m_callback = nullptr;
 
 public:
@@ -159,17 +190,17 @@ public:
 	function& operator=(function&&) = default;
 
 	function(C& obj, member_func mem_fn) {
-		m_obj = std::addressof(obj);
-		m_func = mem_fn;
+		m_obj.obj = std::addressof(obj);
+		m_func.func = mem_fn;
 		m_callback = [](Object obj, Func fn, Args... args) -> R {
-			return (std::get<C*>(obj)->*std::get<member_func>(fn))(std::forward<Args>(args)...);
+			return (obj.obj->*fn.func)(std::forward<Args>(args)...);
 		};
 	}
 	function(const C& obj, const_member_func mem_fn) {
-		m_obj = std::addressof(obj);
-		m_func = mem_fn;
+		m_obj.const_obj = std::addressof(obj);
+		m_func.const_func = mem_fn;
 		m_callback = [](Object obj, Func fn, Args... args) -> R {
-			return (std::get<const C*>(obj)->*std::get<const_member_func>(fn))(std::forward<Args>(args)...);
+			return (obj.const_obj->*fn.const_func)(std::forward<Args>(args)...);
 		};
 	}
 	function(std::pair<C&, member_func> pair) : function(pair.first, pair.second) {}
