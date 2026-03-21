@@ -36,13 +36,13 @@ public:
 	friend class ringbuffer_iterator<const value_type, container_base>;
 
 	constexpr iterator begin() noexcept {
-		return iterator(std::next(container_base::begin(), m_index), this);
+		return iterator(std::next(base_begin(), m_index), this);
 	}
 	constexpr iterator end() noexcept {
 		return iterator(this->begin() + m_current_size, this);
 	}
 	constexpr const_iterator begin() const noexcept {
-		return const_iterator(std::next(container_base::begin(), m_index), this);
+		return const_iterator(std::next(base_begin(), m_index), this);
 	}
 	constexpr const_iterator end() const noexcept {
 		return const_iterator(this->begin() + m_current_size, this);
@@ -60,10 +60,10 @@ public:
 		return reverse_iterator(this->begin());
 	}
 	constexpr const_reverse_iterator rbegin() const noexcept {
-		return const_reverse_iterator(this->rbegin());
+		return const_reverse_iterator(this->begin());
 	}
 	constexpr const_reverse_iterator rend() const noexcept {
-		return const_reverse_iterator(this->rend());
+		return const_reverse_iterator(this->end());
 	}
 	constexpr const_reverse_iterator crbegin() const noexcept {
 		return this->rbegin();
@@ -86,13 +86,21 @@ public:
 		return *(this->end() - 1);
 	}
 
-	constexpr bool empty() const noexcept {
+	constexpr bool buffer_empty() const noexcept {
 		return container_base::empty();
 	}
-
-	constexpr size_t size() const noexcept {
+	constexpr size_t buffer_size() const noexcept {
 		return container_base::size();
 	}
+
+	constexpr bool empty() const noexcept {
+		return m_current_size == 0;
+	}
+	constexpr size_t size() const noexcept {
+		return m_current_size;
+	}
+
+
 	constexpr void resize(size_t newsize, const_reference val = value_type())
 		requires requires(container_base x, size_t s, value_type v) { x.resize(s, v); }
 	{
@@ -102,7 +110,7 @@ public:
 	template<class InputIterator>
 	constexpr void assign(InputIterator first, InputIterator last) {
 		for (auto&& elem : *this) {
-			if (first != last) { break; }
+			if (first == last) { break; }
 			elem = *first;
 			++first;
 		}
@@ -128,22 +136,22 @@ public:
 	constexpr void clear_front() noexcept {
 		this->front() = value_type();
 
-		if (!(++m_index < size())) { m_index = 0; }
+		++m_index %= buffer_size();
 
-		if (!(--m_current_size < size())) { m_current_size = 0; }
+		if (!(--m_current_size < buffer_size())) { m_current_size = 0; }
 	}
 private:
 	template<class fT>
 	constexpr void write_back_impl(fT&& v) noexcept {
 		(*this)[m_current_size] = std::forward<fT>(v);
 
-		if (++m_current_size >= size()) {
-			m_current_size = size() - 1;
+		if (++m_current_size >= buffer_size()) {
+			m_current_size = buffer_size() - 1;
 		} else {
 			return;
 		}
 
-		if (++m_index >= size()) { m_index = 0; }
+		++m_index %= buffer_size();
 	}
 
 public:
@@ -195,11 +203,11 @@ public:
 	using reference = value_type&;
 	using const_reference = const value_type&;
 
-	using parent = ringbuffer_base<value_type, _container_T>;
-	using parent_pointer = typename std::conditional<std::is_const<value_type>::value, const parent*, parent*>::type;
+	using parent = ringbuffer_base<std::remove_const_t<value_type>, _container_T>;
+	using parent_pointer = typename std::conditional_t<std::is_const_v<value_type>, const parent*, parent*>;
 	using container_iterator =
-		typename std::conditional<std::is_const<value_type>::value, typename parent::container_base::const_iterator,
-	                              typename parent::container_base::iterator>::type;
+		typename std::conditional_t<std::is_const<value_type>::value, typename parent::container_base::const_iterator,
+	                              typename parent::container_base::iterator>;
 	using iterator = ringbuffer_iterator<value_type, _container_T>;
 
 	constexpr ringbuffer_iterator() noexcept = default;
@@ -270,7 +278,7 @@ public:
 	}
 	friend constexpr iterator operator-(const iterator& it, difference_type n) noexcept {
 		iterator tmp = it;
-		tmp += n;
+		tmp -= n;
 		return tmp;
 	}
 	friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs) {
@@ -305,13 +313,6 @@ public:
 	using const_reverse_iterator = typename base::const_reverse_iterator;
 
 	using base::base;
-
-	constexpr size_t get_current_size() const {
-		return base::m_current_size;
-	}
-	constexpr size_t get_index() const {
-		return base::m_index;
-	}
 };
 
 template<class T, std::ranges::random_access_range _container_T>

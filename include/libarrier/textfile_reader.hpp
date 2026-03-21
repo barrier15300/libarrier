@@ -42,7 +42,9 @@ public:
 		return true;
 	}
 	void CreateIndex() {
-		if (HasData()) { return; }
+		if (!HasData()) { return; }
+
+		m_lines.clear();
 
 		auto begin = m_data.begin();
 		auto end = m_data.end();
@@ -63,17 +65,19 @@ public:
 		string_view refdata = m_data;
 
 		size_t prev = delim.empty() ? string_view::npos : 0;
+		size_t idxbegin = -delim.size();
+		size_t idxend = 0;
 		while (prev != string::npos) {
-			size_t idxbegin = prev;
-			size_t idxend = refdata.find(delim, prev);
 			prev = idxend + delim.size();
+			idxbegin = prev;
+			idxend = refdata.find(delim, prev);
 
 			m_lines.push_back(refdata.substr(idxbegin, idxend));
 		}
 	}
 
 	bool HasData() const {
-		return m_data.empty();
+		return !m_data.empty();
 	}
 	operator bool() const {
 		return HasData();

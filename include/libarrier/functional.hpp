@@ -1,6 +1,7 @@
 #ifndef LIBARRIER_FUNCTIONAL_HPP
 #define LIBARRIER_FUNCTIONAL_HPP
 
+#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -149,14 +150,14 @@ public:
 		: function(*store_lambda(std::forward<F>(fn_obj))) {}
 
 	template<typename C>
-	function(C& obj, std::conditional_t<std::is_const_v<C>, member_func<C>, const_member_func<C>> fn) {
+	function(C& obj, std::conditional_t<!std::is_const_v<C>, member_func<C>, const_member_func<C>> fn) {
 		auto pobj = std::addressof(obj);
 		*this = function([pobj, fn](Args... args) {
 			return (pobj->*fn)(std::forward<Args>(args)...);
 		});
 	}
 
-	R operator()(Args&&... args) const {
+	R operator()(Args... args) const {
 		return m_callback(m_obj, std::forward<Args>(args)...);
 	}
 };

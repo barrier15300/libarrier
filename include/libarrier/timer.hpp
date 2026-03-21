@@ -32,12 +32,14 @@ public:
 	void Start() {
 		m_tp = is_stopped ? (m_tp + (GetNowTimePoint() - m_stopped)) : (GetNowTimePoint());
 		is_running = true;
+		is_stopped = false;
 	}
 	void Reset() {
 		*this = {};
 	}
 	void Stop() {
 		m_stopped = GetNowTimePoint();
+		is_running = false;
 		is_stopped = true;
 	}
 
@@ -145,6 +147,7 @@ public:
 	static inline const ElapsedTick NonElapsedTick = ElapsedTick(tick_type::min());
 
 	tick_type GetTicks() const {
+		if (!is_running && !is_stopped) { return tick_type::zero(); }
 		return is_stopped ? (m_stopped - m_tp) : (GetNowTimePoint() - m_tp);
 	}
 
