@@ -2,7 +2,7 @@
 #define LIBARRIER_FUNCTIONAL_HPP
 
 #include <concepts>
-#include <cstddef>
+#include <type_traits>
 #include <functional>
 #include <memory>
 #include <mutex>
