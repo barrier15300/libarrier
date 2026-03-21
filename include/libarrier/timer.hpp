@@ -32,14 +32,12 @@ namespace libarrier {
 		void Start() {
 			m_tp = is_stopped ? (m_tp + (GetNowTimePoint() - m_stopped)) : (GetNowTimePoint());
 			is_running = true;
-			is_stopped = false;
 		}
 		void Reset() {
 			*this = {};
 		}
 		void Stop() {
 			m_stopped = GetNowTimePoint();
-			is_running = false;
 			is_stopped = true;
 		}
 
@@ -123,8 +121,7 @@ namespace libarrier {
 		static inline const ElapsedTick NonElapsedTick = ElapsedTick(tick_type::min());
 
 		tick_type GetTicks() const {
-			if (!IsRunning() && !IsStopped()) { return tick_type::zero(); }
-			return IsStopped() ? (m_stopped - m_tp) : (GetNowTimePoint() - m_tp);
+			return is_stopped ? (m_stopped - m_tp) : (GetNowTimePoint() - m_tp);
 		}
 
 		Elapsed GetElapsed() const {

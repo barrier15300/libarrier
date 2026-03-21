@@ -36,13 +36,13 @@ namespace libarrier {
 		friend class ringbuffer_iterator<const value_type, container_base>;
 
 		constexpr iterator begin() noexcept {
-			return iterator(std::next(base_begin(), m_index), this);
+			return iterator(std::next(container_base::begin(), m_index), this);
 		}
 		constexpr iterator end() noexcept {
 			return iterator(this->begin() + m_current_size, this);
 		}
 		constexpr const_iterator begin() const noexcept {
-			return const_iterator(std::next(base_begin(), m_index), this);
+			return const_iterator(std::next(container_base::begin(), m_index), this);
 		}
 		constexpr const_iterator end() const noexcept {
 			return const_iterator(this->begin() + m_current_size, this);
@@ -60,10 +60,10 @@ namespace libarrier {
 			return reverse_iterator(this->begin());
 		}
 		constexpr const_reverse_iterator rbegin() const noexcept {
-			return const_reverse_iterator(this->begin());
+			return const_reverse_iterator(this->rbegin());
 		}
 		constexpr const_reverse_iterator rend() const noexcept {
-			return const_reverse_iterator(this->end());
+			return const_reverse_iterator(this->rend());
 		}
 		constexpr const_reverse_iterator crbegin() const noexcept {
 			return this->rbegin();
@@ -86,20 +86,13 @@ namespace libarrier {
 			return *(this->end() - 1);
 		}
 
-		constexpr bool buffer_empty() const noexcept {
+		constexpr bool empty() const noexcept {
 			return container_base::empty();
 		}
-		constexpr size_t buffer_size() const noexcept {
+
+		constexpr size_t size() const noexcept {
 			return container_base::size();
 		}
-
-		constexpr bool empty() const noexcept {
-			return m_current_size == 0;
-		}
-		constexpr size_t size() const noexcept {
-			return m_current_size;
-		}
-
 		constexpr void resize(size_t newsize, const_reference val = value_type())
 			requires requires (container_base x, size_t s, value_type v) { x.resize(s, v); }
 		{
@@ -109,7 +102,7 @@ namespace libarrier {
 		template<class InputIterator>
 		constexpr void assign(InputIterator first, InputIterator last) {
 			for (auto&& elem : *this) {
-				if (first == last) {
+				if (first != last) {
 					break;
 				}
 				elem = *first;
@@ -139,7 +132,9 @@ namespace libarrier {
 		constexpr void clear_front() noexcept {
 			this->front() = value_type();
 
-			++m_index %= size();
+			if (!(++m_index < size())) {
+				m_index = 0;
+			}
 
 			if (!(--m_current_size < size())) {
 				m_current_size = 0;
@@ -150,14 +145,16 @@ namespace libarrier {
 		constexpr void write_back_impl(fT&& v) noexcept {
 			(*this)[m_current_size] = std::forward<fT>(v);
 
-			if (!(++m_current_size < size())) {
+			if (++m_current_size >= size()) {
 				m_current_size = size() - 1;
 			}
 			else {
 				return;
 			}
 
-			++m_index %= size();
+			if (++m_index >= size()) {
+				m_index = 0;
+			}
 		}
 
 	public:
@@ -206,9 +203,9 @@ namespace libarrier {
 		using reference = value_type&;
 		using const_reference = const value_type&;
 
-		using parent = ringbuffer_base<std::remove_const_t<value_type>, _container_T>;
-		using parent_pointer = typename std::conditional_t<std::is_const<value_type>::value, const parent*, parent*>;
-		using container_iterator = typename std::conditional_t<std::is_const<value_type>::value, typename parent::container_base::const_iterator, typename parent::container_base::iterator>;
+		using parent = ringbuffer_base<value_type, _container_T>;
+		using parent_pointer = typename std::conditional<std::is_const<value_type>::value, const parent*, parent*>::type;
+		using container_iterator = typename std::conditional<std::is_const<value_type>::value, typename parent::container_base::const_iterator, typename parent::container_base::iterator>::type;
 		using iterator = ringbuffer_iterator<value_type, _container_T>;
 
 		constexpr ringbuffer_iterator() noexcept = default;
@@ -245,7 +242,7 @@ namespace libarrier {
 
 		friend constexpr iterator operator+(const iterator& it, difference_type n) noexcept { iterator tmp = it; tmp += n; return tmp; }
 		friend constexpr iterator operator+(difference_type n, const iterator& it) noexcept { iterator tmp = it; tmp += n; return tmp; }
-		friend constexpr iterator operator-(const iterator& it, difference_type n) noexcept { iterator tmp = it; tmp -= n; return tmp; }
+		friend constexpr iterator operator-(const iterator& it, difference_type n) noexcept { iterator tmp = it; tmp += n; return tmp; }
 		friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs) { check_parent(lhs, rhs); return std::distance(rhs.m_it, lhs.m_it); }
 
 		friend constexpr auto operator<=>(const iterator&, const iterator&) noexcept = default;
@@ -275,6 +272,9 @@ namespace libarrier {
 		using const_reverse_iterator = typename base::const_reverse_iterator;
 
 		using base::base;
+
+		constexpr size_t get_current_size() const { return base::m_current_size; }
+		constexpr size_t get_index() const { return base::m_index; }
 	};
 
 	template<class T, std::ranges::random_access_range _container_T>
