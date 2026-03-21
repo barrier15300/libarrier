@@ -9,18 +9,17 @@
 
 namespace libarrier {
 
-template<class CharT>
-class basic_TextfileReader {
-	using string = std::basic_string<CharT>;
-	using string_view = std::basic_string_view<CharT>;
+class TextfileReader {
+	using string = std::string;
+	using string_view = std::string_view;
 
 	string m_data;
 	std::vector<string_view> m_lines;
 
 public:
 
-	basic_TextfileReader() = default;
-	basic_TextfileReader(const string& path) {
+	TextfileReader() = default;
+	TextfileReader(const string& path) {
 		Read(path);
 	}
 

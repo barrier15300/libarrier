@@ -223,8 +223,8 @@ public:
 	constexpr reference operator*() const {
 		return *m_it;
 	}
-	constexpr reference operator->() const {
-		return *m_it;
+	constexpr pointer operator->() const {
+		return m_it;
 	}
 	constexpr iterator& operator++() noexcept {
 		check_add(1);
@@ -257,7 +257,7 @@ public:
 		if (lhs.m_parent != rhs.m_parent) { throw std::runtime_error("Iterators do not belong to the same ringbuffer."); }
 	}
 	constexpr void check_add(difference_type n) noexcept {
-		difference_type size = m_parent->size();
+		difference_type size = m_parent->buffer_size();
 		container_iterator _begin = m_parent->base_begin();
 		difference_type diff = (((std::distance(_begin, m_it) + n) + size) % size);
 		m_it = std::next(_begin, diff);

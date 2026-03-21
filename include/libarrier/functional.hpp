@@ -215,10 +215,10 @@ template<typename R, typename... Args>
 function(R (*)(Args...)) -> function<R(Args...)>;
 
 template<typename R, typename C, typename... Args>
-function(C, R (C::*)(Args...)) -> function<R (C::*)(Args...)>;
+function(C&, R (C::*)(Args...)) -> function<R (C::*)(Args...)>;
 
 template<typename R, typename C, typename... Args>
-function(C, R (C::*)(Args...) const) -> function<R (C::*)(Args...)>;
+function(const C&, R (C::*)(Args...) const) -> function<R (C::*)(Args...)>;
 
 template<typename R, typename C, typename... Args>
 function(std::pair<C&, R (C::*)(Args...)>) -> function<R (C::*)(Args...)>;
