@@ -1,5 +1,4 @@
 #include "libarrier.h"
-#include <cstdio>
 
 struct Functor {
 	int v = 3;
