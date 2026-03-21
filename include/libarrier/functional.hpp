@@ -1,6 +1,7 @@
 #ifndef LIBARRIER_FUNCTIONAL_HPP
 #define LIBARRIER_FUNCTIONAL_HPP
 
+#include <concepts>
 #include <type_traits>
 #include <functional>
 #include <utility>
