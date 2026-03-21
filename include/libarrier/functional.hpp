@@ -54,9 +54,7 @@ protected:
 
 	template<typename L>
 	struct unique_lambda : unique_lambda_base {
-		unique_lambda(L&& lambda) {
-			m_lambda = std::forward<L>(lambda);
-		}
+		unique_lambda(L&& lambda) : m_lambda(std::forward<L>(lambda)) {}
 		L m_lambda;
 	};
 
@@ -70,7 +68,7 @@ protected:
 	static L* store_lambda(L&& lambda) noexcept {
 		lock lock(mutex);
 		std::unique_ptr p = std::make_unique<unique_lambda<L>>(std::forward<L>(lambda));
-		auto ret = p.get()->m_lambda;
+		auto ret = std::addressof(p.get()->m_lambda);
 		unique_lambdas.push_back(std::move(p));
 		return ret;
 	}
