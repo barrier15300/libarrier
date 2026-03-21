@@ -16,23 +16,22 @@ public:
 
 	template<typename F, typename... Args>
 	Task(F&& proc, Args&&... args) {
-		m_future = std::async(std::launch::async, proc, std::forward<Args>(args)...);
+		m_future = std::async(std::launch::async, std::forward<F>(proc), std::forward<Args>(args)...);
 	}
-
 	bool IsFinished() const {
+		if (!m_future.valid()) { return false; }
 		return m_future.wait_for(std::chrono::seconds::zero()) == std::future_status::ready;
 	}
 
-	void Wait() {
-		while (!IsFinished()) {
-			std::this_thread::yield();
-		}
+	void Wait() const {
+		if (m_future.valid()) { m_future.wait(); }
 	}
 
 	std::optional<T> ResultAsync() {
 		return IsFinished() ? m_future.get() : std::nullopt;
 	}
-	T Result() {
+	std::optional<T> Result() {
+		if (!m_future.valid()) { return std::nullopt; }
 		Wait();
 		return m_future.get();
 	}
