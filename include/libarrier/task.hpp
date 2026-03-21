@@ -29,7 +29,7 @@ public:
 		}
 	}
 
-	std::optional<T> ResultAsync() const {
+	std::optional<T> ResultAsync() {
 		return IsFinished() ? m_future.get() : std::nullopt;
 	}
 	T Result() {
