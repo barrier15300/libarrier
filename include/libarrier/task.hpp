@@ -27,10 +27,14 @@ public:
 		if (m_future.valid()) { m_future.wait(); }
 	}
 
-	std::optional<T> ResultAsync() {
+	std::optional<T> ResultAsync()
+		requires(!std::is_void_v<T>)
+	{
 		return IsFinished() ? m_future.get() : std::nullopt;
 	}
-	std::optional<T> Result() {
+	std::optional<T> Result()
+		requires(!std::is_void_v<T>)
+	{
 		if (!m_future.valid()) { return std::nullopt; }
 		Wait();
 		return m_future.get();
