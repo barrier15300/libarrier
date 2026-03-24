@@ -3,13 +3,11 @@
 
 #include <concepts>
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <mutex>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 namespace libarrier {
@@ -47,31 +45,14 @@ struct function_traits : function_traits<decltype(&F::operator())> {};
 // function impl
 class function_base {
 protected:
-
-	struct unique_lambda_base {
-		unique_lambda_base() noexcept = default;
-		virtual ~unique_lambda_base() noexcept = default;
-	};
+	template<typename L>
+	static L* alloc_lambda(L&& lambda) {
+		return new L(std::forward<L>(lambda));
+	}
 
 	template<typename L>
-	struct unique_lambda : unique_lambda_base {
-		unique_lambda(L&& lambda) : m_lambda(std::forward<L>(lambda)) {}
-		L m_lambda;
-	};
-
-	using ptr_t = std::unique_ptr<unique_lambda_base>;
-	using lock = std::lock_guard<std::mutex>;
-
-	static inline std::vector<ptr_t> unique_lambdas;
-	static inline std::mutex mutex;
-
-	template<typename L>
-	static L* store_lambda(L&& lambda) noexcept {
-		lock lock(mutex);
-		std::unique_ptr p = std::make_unique<unique_lambda<L>>(std::forward<L>(lambda));
-		auto ret = std::addressof(p.get()->m_lambda);
-		unique_lambdas.push_back(std::move(p));
-		return ret;
+	static void free_lambda(L* plambda) {
+		delete plambda;
 	}
 };
 
@@ -147,8 +128,12 @@ public:
 	template<typename F>
 	function(F&& fn_obj)
 		requires(func_object<F> && !convertible_to_func_pointer<F>)
-		: function(*store_lambda(std::forward<F>(fn_obj))) {}
-
+		:
+		function([prvobj = alloc_lambda(std::forward<F>(fn_obj))](Args... args) -> R {
+			auto&& ret = (*prvobj)(std::forward<Args>(args)...);
+			free_lambda(prvobj);
+			return ret;
+		}) {}
 	template<typename C>
 	function(C& obj, std::conditional_t<!std::is_const_v<C>, member_func<C>, const_member_func<C>> fn) {
 		auto pobj = std::addressof(obj);
