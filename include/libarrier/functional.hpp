@@ -77,9 +77,10 @@ protected:
 	static void unregist_functor(F* pfunctor) {
 		semaphore.acquire();
 		auto target = storage.find(pfunctor);
-		if (target == storage.end()) { return; }
-		delete target->second;
-		storage.erase(target);
+		if (target != storage.end()) {
+			delete target->second;
+			storage.erase(target);
+		}
 		semaphore.release();
 	}
 };
