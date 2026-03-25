@@ -5,8 +5,11 @@
 #include <cstddef>
 #include <memory>
 #include <mutex>
+#include <semaphore>
 #include <tuple>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -45,14 +48,39 @@ struct function_traits : function_traits<decltype(&F::operator())> {};
 // function impl
 class function_base {
 protected:
-	template<typename L>
-	static L* alloc_lambda(L&& lambda) {
-		return new L(std::forward<L>(lambda));
+
+	struct generic_functor_base {
+		generic_functor_base() {}
+		virtual ~generic_functor_base() {}
+	};
+
+	template<typename F>
+	struct generic_functor : generic_functor_base {
+		generic_functor(F&& prfunctor) : functor(std::move(prfunctor)) {}
+		F functor;
+	};
+
+	static inline std::unordered_map<void*, generic_functor_base*> storage;
+	static inline std::binary_semaphore semaphore{1};
+
+	template<typename F>
+	static F* regist_functor(F&& functor) {
+		auto gfunctor = new generic_functor(std::move(functor));
+		auto pfunctor = std::addressof(gfunctor->functor);
+		semaphore.acquire();
+		storage[pfunctor] = gfunctor;
+		semaphore.release();
+		return pfunctor;
 	}
 
-	template<typename L>
-	static void free_lambda(L* plambda) {
-		delete plambda;
+	template<typename F>
+	static void unregist_functor(F* pfunctor) {
+		semaphore.acquire();
+		auto target = storage.find(pfunctor);
+		if (target == storage.end()) { return; }
+		delete target->second;
+		storage.erase(target);
+		semaphore.release();
 	}
 };
 
@@ -125,21 +153,20 @@ public:
 			return (*static_cast<const F*>(obj.const_obj))(std::forward<Args>(args)...);
 		};
 	}
-	template<typename F>
-	function(F&& fn_obj)
-		requires(func_object<F> && !convertible_to_func_pointer<F>)
-		:
-		function([prvobj = alloc_lambda(std::forward<F>(fn_obj))](Args... args) -> R {
-			auto&& ret = (*prvobj)(std::forward<Args>(args)...);
-			free_lambda(prvobj);
-			return ret;
-		}) {}
 	template<typename C>
 	function(C& obj, std::conditional_t<!std::is_const_v<C>, member_func<C>, const_member_func<C>> fn) {
 		auto pobj = std::addressof(obj);
 		*this = function([pobj, fn](Args... args) {
 			return (pobj->*fn)(std::forward<Args>(args)...);
 		});
+	}
+
+	template<typename F>
+	function(F&& fn_obj)
+		requires(func_object<F> && !convertible_to_func_pointer<F>)
+		: function(*regist_functor(std::move(fn_obj))) {}
+	~function() {
+		unregist_functor(m_obj.obj);
 	}
 
 	R operator()(Args... args) const {

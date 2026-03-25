@@ -30,7 +30,8 @@ public:
 	std::optional<T> ResultAsync()
 		requires(!std::is_void_v<T>)
 	{
-		return IsFinished() ? m_future.get() : std::nullopt;
+		if (IsFinished()) { return m_future.get(); }
+		return std::nullopt;
 	}
 	std::optional<T> Result()
 		requires(!std::is_void_v<T>)
