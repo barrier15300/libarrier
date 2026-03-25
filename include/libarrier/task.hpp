@@ -36,7 +36,11 @@ public:
 	std::optional<T> Result()
 		requires(!std::is_void_v<T>)
 	{
-		return m_future.valid() ? m_future.get() : (Wait(), std::nullopt);
+		if (m_future.valid()) {
+			Wait();
+			return m_future.get();
+		}
+		return std::nullopt;
 	}
 };
 
