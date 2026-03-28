@@ -15,6 +15,7 @@ class Task {
 
 public:
 
+	Task(std::future<T>&& future) : m_future(std::move(future)) {}
 	template<typename F, typename... Args>
 	Task(F&& proc, Args&&... args) {
 		m_future = std::async(std::launch::async, std::forward<F>(proc), std::forward<Args>(args)...);
