@@ -4,14 +4,10 @@
 #include <concepts>
 #include <cstddef>
 #include <memory>
-#include <mutex>
-#include <semaphore>
 #include <tuple>
 #include <type_traits>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
-#include <vector>
+#include <variant>
 
 namespace libarrier {
 
@@ -52,37 +48,17 @@ protected:
 	struct generic_functor_base {
 		generic_functor_base() {}
 		virtual ~generic_functor_base() {}
+		virtual void* get_functor() = 0;
 	};
 
 	template<typename F>
 	struct generic_functor : generic_functor_base {
 		generic_functor(F&& prfunctor) : functor(std::move(prfunctor)) {}
+		void* get_functor() {
+			return std::addressof(functor);
+		}
 		F functor;
 	};
-
-	static inline std::unordered_map<void*, generic_functor_base*> storage;
-	static inline std::binary_semaphore semaphore{1};
-
-	template<typename F>
-	static F* regist_functor(F&& functor) {
-		auto gfunctor = new generic_functor(std::move(functor));
-		auto pfunctor = std::addressof(gfunctor->functor);
-		semaphore.acquire();
-		storage[pfunctor] = gfunctor;
-		semaphore.release();
-		return pfunctor;
-	}
-
-	template<typename F>
-	static void unregist_functor(F* pfunctor) {
-		semaphore.acquire();
-		auto target = storage.find(pfunctor);
-		if (target != storage.end()) {
-			delete target->second;
-			storage.erase(target);
-		}
-		semaphore.release();
-	}
 };
 
 template<typename F, typename... Args>
@@ -98,15 +74,11 @@ class function<R(Args...)> : function_base {
 	template<typename C>
 	using const_member_func = R (C::*)(Args...) const;
 	using func_ptr = R (*)(Args...);
+	using prfunc_ptr = std::unique_ptr<generic_functor_base>;
 
-	union Object {
-		std::nullptr_t null = nullptr;
-		func_ptr func;
-		void* obj;
-		const void* const_obj;
-	} m_obj{};
-
-	using Callback = R (*)(Object, Args...);
+	using Object = std::variant<std::nullptr_t, func_ptr, void*, const void*, prfunc_ptr>;
+	using Callback = R (*)(Object&, Args...);
+	Object m_obj = nullptr;
 	Callback m_callback = nullptr;
 
 public:
@@ -127,9 +99,9 @@ public:
 	function& operator=(function&&) = default;
 
 	function(func_ptr func) {
-		m_obj.func = func;
-		m_callback = [](Object obj, Args... args) -> R {
-			return obj.func(std::forward<Args>(args)...);
+		m_obj = func;
+		m_callback = [](Object& obj, Args... args) -> R {
+			return std::get<func_ptr>(obj)(std::forward<Args>(args)...);
 		};
 	}
 	template<typename F>
@@ -140,37 +112,36 @@ public:
 	function(F& fn_obj)
 		requires(func_object<F>)
 	{
-		m_obj.obj = static_cast<void*>(std::addressof(fn_obj));
-		m_callback = [](Object obj, Args... args) -> R {
-			return (*static_cast<F*>(obj.obj))(std::forward<Args>(args)...);
+		m_obj = static_cast<void*>(std::addressof(fn_obj));
+		m_callback = [](Object& obj, Args... args) -> R {
+			return (*static_cast<F*>(std::get<void*>(obj)))(std::forward<Args>(args)...);
 		};
 	}
 	template<typename F>
 	function(const F& fn_obj)
 		requires(func_object<F>)
 	{
-		m_obj.const_obj = static_cast<const void*>(std::addressof(fn_obj));
-		m_callback = [](Object obj, Args... args) -> R {
-			return (*static_cast<const F*>(obj.const_obj))(std::forward<Args>(args)...);
+		m_obj = static_cast<const void*>(std::addressof(fn_obj));
+		m_callback = [](Object& obj, Args... args) -> R {
+			return (*static_cast<const F*>(std::get<const void*>(obj)))(std::forward<Args>(args)...);
 		};
 	}
 	template<typename C>
-	function(C& obj, std::conditional_t<!std::is_const_v<C>, member_func<C>, const_member_func<C>> fn) {
-		auto pobj = std::addressof(obj);
-		*this = function([pobj, fn](Args... args) {
+	function(C& obj, std::conditional_t<!std::is_const_v<C>, member_func<C>, const_member_func<C>> fn) :
+		function([pobj = std::addressof(obj), fn](Args... args) {
 			return (pobj->*fn)(std::forward<Args>(args)...);
-		});
-	}
-
+		}) {}
 	template<typename F>
 	function(F&& fn_obj)
 		requires(func_object<F> && !convertible_to_func_pointer<F>)
-		: function(*regist_functor(std::move(fn_obj))) {}
-	~function() {
-		unregist_functor(m_obj.obj);
+	{
+		m_obj = std::make_unique<generic_functor<F>>(std::move(fn_obj));
+		m_callback = [](Object& obj, Args... args) -> R {
+			return (*static_cast<F*>(std::get<prfunc_ptr>(obj)->get_functor()))(std::forward<Args>(args)...);
+		};
 	}
 
-	R operator()(Args... args) const {
+	R operator()(Args... args) {
 		return m_callback(m_obj, std::forward<Args>(args)...);
 	}
 };

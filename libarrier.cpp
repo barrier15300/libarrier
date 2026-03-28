@@ -5,13 +5,12 @@
 int main() {
 	using namespace libarrier;
 
-	double b = 1.5;
-	function<void(int)> fn = [b](int a) {
-		printf("v: %lf\n", a * b);
+	int a = 3;
+	function<void(int)> f = [a](int b) {
+		printf("v: %d", a * b);
 	};
 
-	fn(2);
-	fn(3);
+	f(5);
 
 	return 0;
 }
