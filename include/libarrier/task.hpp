@@ -2,9 +2,10 @@
 #define LIBARRIER_TASK_HPP
 
 #include <chrono>
+#include <functional>
 #include <future>
 #include <optional>
-#include <thread>
+#include <semaphore>
 
 namespace libarrier {
 
@@ -29,14 +30,17 @@ public:
 	std::optional<T> ResultAsync()
 		requires(!std::is_void_v<T>)
 	{
-		return IsFinished() ? m_future.get() : std::nullopt;
+		if (IsFinished()) { return m_future.get(); }
+		return std::nullopt;
 	}
 	std::optional<T> Result()
 		requires(!std::is_void_v<T>)
 	{
-		if (!m_future.valid()) { return std::nullopt; }
-		Wait();
-		return m_future.get();
+		if (m_future.valid()) {
+			Wait();
+			return m_future.get();
+		}
+		return std::nullopt;
 	}
 };
 

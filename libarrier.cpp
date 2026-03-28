@@ -1,14 +1,16 @@
 #include "libarrier.h"
 
 #include "include/libarrier/functional.hpp"
-#include "include/libarrier/task.hpp"
 
 int main() {
 	using namespace libarrier;
 
-	Task task = Task<int>([&]() {
-		return 0;
-	});
+	int a = 3;
+	function<void(int)> f = [a](int b) {
+		printf("v: %d", a * b);
+	};
+
+	f(5);
 
 	return 0;
 }

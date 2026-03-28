@@ -1,11 +1,9 @@
 ﻿#pragma once
 
-//#define SINGLE_TEST
+#define SINGLE_TEST
 
-#ifdef SINGLE_TEST
+#ifndef SINGLE_TEST
 #include "include/libarrier/arrier.hpp"
-#else
-#include "include/libarrier/task.hpp"
 #endif
 
 #include <cstdio>
