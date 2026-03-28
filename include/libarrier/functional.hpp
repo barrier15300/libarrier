@@ -49,12 +49,16 @@ protected:
 		generic_functor_base() {}
 		virtual ~generic_functor_base() {}
 		virtual void* get_functor() = 0;
+		virtual const void* get_functor() const = 0;
 	};
 
 	template<typename F>
 	struct generic_functor : generic_functor_base {
 		generic_functor(F&& prfunctor) : functor(std::move(prfunctor)) {}
 		void* get_functor() {
+			return std::addressof(functor);
+		}
+		const void* get_functor() const {
 			return std::addressof(functor);
 		}
 		F functor;
@@ -74,10 +78,10 @@ class function<R(Args...)> : function_base {
 	template<typename C>
 	using const_member_func = R (C::*)(Args...) const;
 	using func_ptr = R (*)(Args...);
-	using prfunc_ptr = std::unique_ptr<generic_functor_base>;
+	using prfunc_ptr = std::shared_ptr<generic_functor_base>;
 
 	using Object = std::variant<std::nullptr_t, func_ptr, void*, const void*, prfunc_ptr>;
-	using Callback = R (*)(Object&, Args...);
+	using Callback = R (*)(Object, Args...);
 	Object m_obj = nullptr;
 	Callback m_callback = nullptr;
 
@@ -100,7 +104,7 @@ public:
 
 	function(func_ptr func) {
 		m_obj = func;
-		m_callback = [](Object& obj, Args... args) -> R {
+		m_callback = [](Object obj, Args... args) -> R {
 			return std::get<func_ptr>(obj)(std::forward<Args>(args)...);
 		};
 	}
@@ -113,7 +117,7 @@ public:
 		requires(func_object<F>)
 	{
 		m_obj = static_cast<void*>(std::addressof(fn_obj));
-		m_callback = [](Object& obj, Args... args) -> R {
+		m_callback = [](Object obj, Args... args) -> R {
 			return (*static_cast<F*>(std::get<void*>(obj)))(std::forward<Args>(args)...);
 		};
 	}
@@ -122,12 +126,17 @@ public:
 		requires(func_object<F>)
 	{
 		m_obj = static_cast<const void*>(std::addressof(fn_obj));
-		m_callback = [](Object& obj, Args... args) -> R {
+		m_callback = [](Object obj, Args... args) -> R {
 			return (*static_cast<const F*>(std::get<const void*>(obj)))(std::forward<Args>(args)...);
 		};
 	}
 	template<typename C>
-	function(C& obj, std::conditional_t<!std::is_const_v<C>, member_func<C>, const_member_func<C>> fn) :
+	function(C& obj, member_func<C> fn) :
+		function([pobj = std::addressof(obj), fn](Args... args) {
+			return (pobj->*fn)(std::forward<Args>(args)...);
+		}) {}
+	template<typename C>
+	function(const C& obj, const_member_func<C> fn) :
 		function([pobj = std::addressof(obj), fn](Args... args) {
 			return (pobj->*fn)(std::forward<Args>(args)...);
 		}) {}
@@ -136,12 +145,12 @@ public:
 		requires(func_object<F> && !convertible_to_func_pointer<F>)
 	{
 		m_obj = std::make_unique<generic_functor<F>>(std::move(fn_obj));
-		m_callback = [](Object& obj, Args... args) -> R {
+		m_callback = [](Object obj, Args... args) -> R {
 			return (*static_cast<F*>(std::get<prfunc_ptr>(obj)->get_functor()))(std::forward<Args>(args)...);
 		};
 	}
 
-	R operator()(Args... args) {
+	R operator()(Args... args) const {
 		return m_callback(m_obj, std::forward<Args>(args)...);
 	}
 };
