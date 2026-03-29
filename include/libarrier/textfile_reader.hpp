@@ -171,6 +171,9 @@ public:
 		size_t idx() const {
 			return m_idx;
 		}
+		size_t elem() const {
+			return m_elem;
+		}
 		size_t next() const {
 			return exist() ? m_idx + m_elem : string_view::npos;
 		}
