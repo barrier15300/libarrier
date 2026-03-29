@@ -5,9 +5,11 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <vector>
+
 
 namespace libarrier {
 
@@ -193,6 +195,10 @@ public:
 			offset = info.next();
 		}
 		return infos;
+	}
+
+	auto sublines(size_t start, size_t count = string_view::npos) const {
+		return m_lines | std::views::drop(start) | std::views::take(count);
 	}
 };
 
