@@ -3,6 +3,7 @@
 
 #include "functional.hpp"
 #include "ringbuffer.hpp"
+#include "task.hpp"
 #include "textfile_reader.hpp"
 #include "timer.hpp"
 

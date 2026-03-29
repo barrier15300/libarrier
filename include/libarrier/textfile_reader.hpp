@@ -1,6 +1,7 @@
 #ifndef LIBARRIER_TEXTFILE_READER_HPP
 #define LIBARRIER_TEXTFILE_READER_HPP
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -77,6 +78,13 @@ public:
 		}
 	}
 
+	string& data() {
+		return m_data;
+	}
+	const string& data() const {
+		return m_data;
+	}
+
 	bool HasData() const {
 		return !m_data.empty();
 	}
@@ -128,8 +136,13 @@ public:
 		return std::crend(m_lines);
 	}
 
-	size_t find() const {
-		return 0; // TODO:
+	size_t lineof(size_t cursor) const {
+		size_t dataidx = std::clamp(cursor, static_cast<size_t>(0), m_data.size() - 1);
+		auto it = std::lower_bound(begin(), end(), string_view(m_data).substr(dataidx, 1),
+		                           [](const string_view& line, const string_view& target) {
+			return line.end() < target.begin();
+		});
+		return std::distance(begin(), it);
 	}
 };
 
