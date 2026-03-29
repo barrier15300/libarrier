@@ -2,6 +2,7 @@
 #define LIBARRIER_TEXTFILE_READER_HPP
 
 #include <algorithm>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -143,6 +144,52 @@ public:
 			return line.end() < target.begin();
 		});
 		return std::distance(begin(), it);
+	}
+
+	template<size_t (string_view::*find_func)(string_view, size_t) const>
+	class exist_info {
+		size_t m_idx;
+		size_t m_elem;
+
+	public:
+
+		exist_info(string_view data, string_view target, size_t offset = 0) {
+			m_idx = (data.*find_func)(target, offset);
+			m_elem = target.size();
+		}
+
+		explicit operator bool() const {
+			return exist();
+		}
+		operator size_t() const {
+			return idx();
+		}
+
+		bool exist() const {
+			return m_idx != string_view::npos;
+		}
+		size_t idx() const {
+			return m_idx;
+		}
+		size_t next() const {
+			return exist() ? m_idx + m_elem : string_view::npos;
+		}
+	};
+	auto exist(string_view target, size_t offset = 0) const {
+		return exist_info<&string_view::find>(m_data, target, offset);
+	}
+	auto rexist(string_view target, size_t offset = 0) const {
+		return exist_info<&string_view::rfind>(m_data, target, offset);
+	}
+
+	auto exist_all(string_view target) const {
+		std::vector<exist_info<&string_view::find>> infos;
+		size_t offset = 0;
+		while (auto info = exist(target, offset)) {
+			infos.push_back(info);
+			offset = info.next();
+		}
+		return infos;
 	}
 };
 
