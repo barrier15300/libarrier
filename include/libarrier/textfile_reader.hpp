@@ -137,8 +137,8 @@ public:
 	}
 
 	size_t lineof(size_t cursor) const {
-		size_t dataidx = std::clamp(cursor, static_cast<size_t>(0), m_data.size() - 1);
-		auto it = std::lower_bound(begin(), end(), string_view(m_data).substr(dataidx, 1),
+		if (cursor >= m_data.size()) { return string_view::npos; }
+		auto it = std::lower_bound(begin(), end(), string_view(m_data).substr(cursor, 1),
 		                           [](const string_view& line, const string_view& target) {
 			return line.end() < target.begin();
 		});
