@@ -66,7 +66,7 @@ public:
 		string_view refdata = m_data;
 
 		size_t prev = delim.empty() ? string_view::npos : 0;
-		size_t idxbegin = -delim.size();
+		size_t idxbegin = ~delim.size() + 1;
 		size_t idxend = 0;
 		while (prev != string::npos) {
 			prev = idxend + delim.size();
