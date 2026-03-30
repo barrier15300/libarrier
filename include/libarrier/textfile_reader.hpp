@@ -255,15 +255,12 @@ public:
 		string_view delim = endcodetype[endtypeindex];
 		string_view refdata = m_data;
 
-		size_t prev = delim.empty() ? string_view::npos : 0;
-		size_t idxbegin = ~delim.size() + 1;
-		size_t idxend = 0;
-		while (prev != string::npos) {
-			prev = idxend + delim.size();
-			idxbegin = prev;
-			idxend = refdata.find(delim, prev);
-
-			m_lines.push_back(refdata.substr(idxbegin, idxend));
+		size_t idxbegin = 0;
+		size_t idxend = refdata.find(delim);
+		while (idxbegin != std::string_view::npos) {
+			m_lines.push_back(refdata.substr(idxbegin, idxend - idxbegin));
+			idxbegin = (idxend == std::string_view::npos) ? (idxend) : (idxend + delim.size());
+			idxend = refdata.find(delim, idxbegin);
 		}
 	}
 
