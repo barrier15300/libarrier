@@ -33,6 +33,12 @@ public:
 		using lines_view = lines_view_base<TextfileReader>;
 		using const_lines_view = lines_view_base<const TextfileReader>;
 
+		lines_view_base() = delete;
+		lines_view_base(const lines_view_base&) = default;
+		lines_view_base(lines_view_base&&) = default;
+		lines_view_base& operator=(const lines_view_base&) = default;
+		lines_view_base& operator=(lines_view_base&&) = default;
+
 		lines_view_base(T& reader) : m_reader(reader), m_count(m_reader.m_lines.size()) {}
 		lines_view_base(T& reader, size_t begin, size_t count) :
 			m_reader(reader),
