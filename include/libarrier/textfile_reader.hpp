@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <memory>
 #include <ranges>
 #include <string>
 #include <string_view>
@@ -129,8 +130,8 @@ public:
 		}
 
 		line_type subdata() const {
-			size_t databegin = begin()->begin() - m_reader->data().begin();
-			size_t dataend = rbegin()->end() - m_reader->data().begin();
+			size_t databegin = std::to_address(begin()->begin()) - std::to_address(m_reader->data().begin());
+			size_t dataend = std::to_address(rbegin()->end()) - std::to_address(m_reader->data().begin());
 			return line_type(m_reader->m_data).substr(databegin, dataend - databegin);
 		}
 
