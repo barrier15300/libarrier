@@ -196,7 +196,7 @@ public:
 		}
 
 		lines_view_type sublines(size_t start, size_t count = line_type::npos) const {
-			return lines_view_type(m_reader, m_begin + start, count);
+			return lines_view_type(*m_reader, m_begin + start, count);
 		}
 	};
 	using lines_view = lines_view_base<TextfileReader>;
