@@ -9,6 +9,7 @@
 #include <ranges>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 namespace libarrier {
@@ -24,14 +25,19 @@ public:
 
 	template<class T>
 	class lines_view_base {
-		T& m_reader;
+		T* m_reader;
 		size_t m_begin;
 		size_t m_count;
+
+		static constexpr bool is_const = std::is_const_v<T>;
 
 	public:
 
 		using lines_view = lines_view_base<TextfileReader>;
 		using const_lines_view = lines_view_base<const TextfileReader>;
+
+		using line_type = std::conditional_t<is_const, const string_view, string_view>;
+		using lines_view_type = std::conditional_t<is_const, const_lines_view, lines_view>;
 
 		lines_view_base() = delete;
 		lines_view_base(const lines_view_base&) = default;
@@ -39,45 +45,67 @@ public:
 		lines_view_base& operator=(const lines_view_base&) = default;
 		lines_view_base& operator=(lines_view_base&&) = default;
 
-		lines_view_base(T& reader) : m_reader(reader), m_count(m_reader.m_lines.size()) {}
+		lines_view_base(T& reader) : m_reader(std::addressof(reader)), m_count(m_reader->m_lines.size()) {}
 		lines_view_base(T& reader, size_t begin, size_t count) :
-			m_reader(reader),
-			m_begin(std::min(begin, m_reader.m_lines.size())),
+			m_reader(std::addressof(reader)),
+			m_begin(std::min(begin, m_reader->m_lines.size())),
 			m_count(std::min(count, max_size())) {}
 
 		size_t max_size() const {
-			return m_reader.m_lines.size() - m_begin;
+			return m_reader->m_lines.size() - m_begin;
 		}
 
-		string_view operator[](size_t idx) const {
-			return m_reader.m_lines[m_begin + idx];
+		line_type operator[](size_t idx)
+			requires(!is_const)
+		{
+			return m_reader->m_lines[m_begin + idx];
 		}
-		string_view at(size_t idx) const {
-			return m_reader.m_lines.at(m_begin + idx);
+		line_type at(size_t idx)
+			requires(!is_const)
+		{
+			return m_reader->m_lines.at(m_begin + idx);
+		}
+		line_type operator[](size_t idx) const
+			requires(is_const)
+		{
+			return m_reader->m_lines[m_begin + idx];
+		}
+		line_type at(size_t idx) const
+			requires(is_const)
+		{
+			return m_reader->m_lines.at(m_begin + idx);
 		}
 
-		auto begin() {
-			return m_reader.m_lines.begin() + m_begin;
+		auto begin()
+			requires(!is_const)
+		{
+			return m_reader->m_lines.begin() + m_begin;
 		}
-		auto end() {
-			return m_reader.m_lines.begin() + m_begin + m_count;
+		auto end()
+			requires(!is_const)
+		{
+			return m_reader->m_lines.begin() + m_begin + m_count;
 		}
 		auto begin() const {
-			return m_reader.m_lines.begin() + m_begin;
+			return m_reader->m_lines.begin() + m_begin;
 		}
 		auto end() const {
-			return m_reader.m_lines.begin() + m_begin + m_count;
+			return m_reader->m_lines.begin() + m_begin + m_count;
 		}
 		auto cbegin() const {
-			return m_reader.m_lines.cbegin() + m_begin;
+			return m_reader->m_lines.cbegin() + m_begin;
 		}
 		auto cend() const {
-			return m_reader.m_lines.cend() + m_begin + m_count;
+			return m_reader->m_lines.cend() + m_begin + m_count;
 		}
-		auto rbegin() {
+		auto rbegin()
+			requires(!is_const)
+		{
 			return std::reverse_iterator(end());
 		}
-		auto rend() {
+		auto rend()
+			requires(!is_const)
+		{
 			return std::reverse_iterator(begin());
 		}
 		auto rbegin() const {
@@ -100,29 +128,29 @@ public:
 			return size() == 0;
 		}
 
-		string_view subdata() const {
-			size_t databegin = begin()->begin() - m_reader.data().begin();
-			size_t dataend = rbegin()->end() - m_reader.data().begin();
-			return string_view(m_reader.m_data).substr(databegin, dataend - databegin);
+		line_type subdata() const {
+			size_t databegin = begin()->begin() - m_reader->data().begin();
+			size_t dataend = rbegin()->end() - m_reader->data().begin();
+			return line_type(m_reader->m_data).substr(databegin, dataend - databegin);
 		}
 
 		size_t lineof(size_t cursor) const {
-			if (cursor >= subdata().size()) { return string_view::npos; }
+			if (cursor >= subdata().size()) { return line_type::npos; }
 			auto it = std::lower_bound(begin(), end(), subdata().substr(cursor, 1),
-			                           [](const string_view& line, const string_view& target) {
+			                           [](const line_type& line, const line_type& target) {
 				return line.end() < target.begin();
 			});
 			return std::distance(begin(), it);
 		}
 
-		template<size_t (string_view::*find_func)(string_view, size_t) const>
+		template<size_t (line_type::*find_func)(line_type, size_t) const>
 		class basic_exist_info {
 			size_t m_idx;
 			size_t m_elem;
 
 		public:
 
-			basic_exist_info(string_view data, string_view target, size_t offset = 0) {
+			basic_exist_info(line_type data, line_type target, size_t offset = 0) {
 				m_idx = (data.*find_func)(target, offset);
 				m_elem = target.size();
 			}
@@ -135,7 +163,7 @@ public:
 			}
 
 			bool exist() const {
-				return m_idx != string_view::npos;
+				return m_idx != line_type::npos;
 			}
 			size_t idx() const {
 				return m_idx;
@@ -144,20 +172,20 @@ public:
 				return m_elem;
 			}
 			size_t next() const {
-				return exist() ? m_idx + m_elem : string_view::npos;
+				return exist() ? m_idx + m_elem : line_type::npos;
 			}
 		};
-		using exist_info = basic_exist_info<&string_view::find>;
-		using exist_info_r = basic_exist_info<&string_view::rfind>;
+		using exist_info = basic_exist_info<&line_type::find>;
+		using exist_info_r = basic_exist_info<&line_type::rfind>;
 
-		auto exist(string_view target, size_t offset = 0) const {
+		auto exist(line_type target, size_t offset = 0) const {
 			return exist_info(subdata(), target, offset);
 		}
-		auto exist_r(string_view target, size_t offset = 0) const {
+		auto exist_r(line_type target, size_t offset = 0) const {
 			return exist_info_r(subdata(), target, offset);
 		}
 
-		auto exist_all(string_view target) const {
+		auto exist_all(line_type target) const {
 			std::vector<exist_info> infos;
 			size_t offset = 0;
 			while (auto info = exist(target, offset)) {
@@ -167,11 +195,8 @@ public:
 			return infos;
 		}
 
-		lines_view sublines(size_t start, size_t count = string_view::npos) {
-			return lines_view(m_reader, m_begin + start, count);
-		}
-		const_lines_view sublines(size_t start, size_t count = string_view::npos) const {
-			return const_lines_view(m_reader, m_begin + start, count);
+		lines_view_type sublines(size_t start, size_t count = line_type::npos) const {
+			return lines_view_type(m_reader, m_begin + start, count);
 		}
 	};
 	using lines_view = lines_view_base<TextfileReader>;
