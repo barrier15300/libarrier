@@ -337,6 +337,9 @@ public:
 	size_t lineof(size_t cursor) const {
 		return lines().lineof(cursor);
 	}
+	size_t cursorof(size_t line) const {
+		return lines().cursorof(line);
+	}
 
 	auto exist(string_view target, size_t offset = 0) const {
 		return exist_info(m_data, target, offset);
