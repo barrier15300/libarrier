@@ -247,7 +247,7 @@ public:
 
 		size_t endtypeindex = (nsize == rsize) ? (0) : ((rsize == 0) ? (1) : ((nsize == 0) ? (2) : (3)));
 
-		constexpr string_view endcodetype[] = {"\n\r", "\n", "\r", ""};
+		constexpr string_view endcodetype[] = {"\r\n", "\n", "\r", ""};
 		size_type endlinecounts[] = {nsize, nsize, rsize, 0};
 
 		m_lines.reserve(endlinecounts[endtypeindex]);
