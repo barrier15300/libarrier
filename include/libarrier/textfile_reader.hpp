@@ -25,9 +25,9 @@ public:
 
 	template<class T>
 	class lines_view_base {
-		T* m_reader;
-		size_t m_begin;
-		size_t m_count;
+		T* m_reader = nullptr;
+		size_t m_begin = 0;
+		size_t m_count = 0;
 
 		static constexpr bool is_const = std::is_const_v<T>;
 
@@ -150,10 +150,9 @@ public:
 
 		public:
 
-			basic_exist_info(line_type data, line_type target, size_t offset = 0) {
-				m_idx = (data.*find_func)(target, offset);
-				m_elem = target.size();
-			}
+			basic_exist_info(line_type data, line_type target, size_t offset = 0) :
+				m_idx((data.*find_func)(target, offset)),
+				m_elem(target.size()) {}
 
 			explicit operator bool() const {
 				return exist();
@@ -250,7 +249,7 @@ public:
 		constexpr string_view endcodetype[] = {"\r\n", "\n", "\r", ""};
 		size_type endlinecounts[] = {nsize, nsize, rsize, 0};
 
-		m_lines.reserve(endlinecounts[endtypeindex]);
+		m_lines.reserve(endlinecounts[endtypeindex] + 2);
 
 		string_view delim = endcodetype[endtypeindex];
 		string_view refdata = m_data;
