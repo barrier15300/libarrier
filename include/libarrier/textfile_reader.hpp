@@ -135,7 +135,7 @@ public:
 			return line_type(m_reader->m_data).substr(databegin, dataend - databegin);
 		}
 
-		size_t lineof(size_t cursor) const {
+		size_t line_of(size_t cursor) const {
 			auto sub = subdata();
 			if (cursor >= sub.size()) { return line_type::npos; }
 			auto it =
@@ -144,9 +144,14 @@ public:
 			});
 			return std::distance(begin(), it);
 		}
-		size_t cursorof(size_t line) const {
+		size_t cursor_of(size_t line) const {
 			if (line >= size()) { return line_type::npos; }
 			return std::to_address((*this)[line].begin()) - std::to_address(begin()->begin());
+		}
+		size_t line_column_of(size_t cursor) const {
+			auto line = line_of(cursor);
+			if (line == line_type::npos) { return line_type::npos; }
+			return cursor - cursor_of(line);
 		}
 
 		template<size_t (line_type::*find_func)(line_type, size_t) const>
@@ -334,11 +339,14 @@ public:
 		return const_lines_view(*this);
 	}
 
-	size_t lineof(size_t cursor) const {
-		return lines().lineof(cursor);
+	size_t line_of(size_t cursor) const {
+		return lines().line_of(cursor);
 	}
-	size_t cursorof(size_t line) const {
-		return lines().cursorof(line);
+	size_t cursor_of(size_t line) const {
+		return lines().cursor_of(line);
+	}
+	size_t line_column_of(size_t cursor) const {
+		return lines().line_column_of(cursor);
 	}
 
 	auto exist(string_view target, size_t offset = 0) const {
