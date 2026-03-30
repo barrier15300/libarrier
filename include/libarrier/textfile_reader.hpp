@@ -136,10 +136,11 @@ public:
 		}
 
 		size_t lineof(size_t cursor) const {
-			if (cursor >= subdata().size()) { return line_type::npos; }
-			auto it = std::lower_bound(begin(), end(), subdata().substr(cursor, 1),
-			                           [](const line_type& line, const line_type& target) {
-				return line.end() < target.begin();
+			auto sub = subdata();
+			if (cursor >= sub.size()) { return line_type::npos; }
+			auto it =
+				std::lower_bound(begin(), end(), sub.substr(cursor, 1), [](const line_type& line, const line_type& target) {
+				return std::to_address(line.end()) < std::to_address(target.begin());
 			});
 			return std::distance(begin(), it);
 		}
