@@ -144,6 +144,10 @@ public:
 			});
 			return std::distance(begin(), it);
 		}
+		size_t cursorof(size_t line) const {
+			if (line >= size()) { return line_type::npos; }
+			return std::to_address((*this)[line].begin()) - std::to_address(begin()->begin());
+		}
 
 		template<size_t (line_type::*find_func)(line_type, size_t) const>
 		class basic_exist_info {
