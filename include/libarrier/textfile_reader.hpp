@@ -222,6 +222,10 @@ public:
 	TextfileReader(const string& path) {
 		Read(path);
 	}
+	~TextfileReader() {
+		m_lines.clear();
+		m_data.clear();
+	}
 
 	bool Read(const string& path) {
 		std::ifstream ifs(path, std::ios::binary | std::ios::ate);
