@@ -222,9 +222,11 @@ public:
 	TextfileReader(const string& path) {
 		Read(path);
 	}
-	~TextfileReader() {
-		m_lines.clear();
-		m_data.clear();
+	TextfileReader(string_view path) {
+		Read(path);
+	}
+	TextfileReader(const std::filesystem::path& path) {
+		Read(path);
 	}
 
 	bool Read(const string& path) {
@@ -246,6 +248,13 @@ public:
 
 		return true;
 	}
+	bool Read(string_view path) {
+		return Read(string(path));
+	}
+	bool Read(const std::filesystem::path& path) {
+		return Read(path.string());
+	}
+
 	void CreateIndex() {
 		if (empty()) { return; }
 
