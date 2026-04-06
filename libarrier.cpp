@@ -1,16 +1,20 @@
 #include "libarrier.h"
 
-#include "include/libarrier/functional.hpp"
+#include "include/libarrier/match.hpp"
 
 int main() {
 	using namespace libarrier;
 
-	int a = 3;
-	function<void(int)> f = [a](int b) {
-		printf("v: %d", a * b);
-	};
+	union_t<int, char, std::string> data;
 
-	f(5);
+	type_match match{[](int i) {
+		return i;
+	}, [](char c) {
+		return (int)c;
+	}, [](const std::string& s) {
+		return (int)s.size();
+	}};
+	auto ret = data | match;
 
 	return 0;
 }
