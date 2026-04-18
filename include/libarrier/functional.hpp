@@ -110,6 +110,14 @@ public:
 		requires(func_object<F> && convertible_to_func_pointer<F>)
 		: function(static_cast<func_ptr>(fn_obj)) {}
 	template<typename F>
+	function(F&& fn_obj)
+		requires(func_object<F> && !convertible_to_func_pointer<F>)
+		:
+		m_obj(prfunc_ptr(new generic_functor<F>(std::move(fn_obj)))),
+		m_callback([](Object obj, Args... args) -> R {
+			return (*static_cast<F*>(std::get<prfunc_ptr>(obj)->get_functor()))(std::forward<Args>(args)...);
+		}) {}
+	template<typename F>
 	function(F& fn_obj)
 		requires(func_object<F>)
 		:
@@ -134,14 +142,6 @@ public:
 	function(const C& obj, const_member_func<C> fn) :
 		function([pobj = std::addressof(obj), fn](Args... args) {
 			return (pobj->*fn)(std::forward<Args>(args)...);
-		}) {}
-	template<typename F>
-	function(F&& fn_obj)
-		requires(func_object<F> && !convertible_to_func_pointer<F>)
-		:
-		m_obj(std::make_shared<generic_functor<F>>(std::move(fn_obj))),
-		m_callback([](Object obj, Args... args) -> R {
-			return (*static_cast<F*>(std::get<prfunc_ptr>(obj)->get_functor()))(std::forward<Args>(args)...);
 		}) {}
 
 	R operator()(Args... args) const {
