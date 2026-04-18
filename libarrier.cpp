@@ -1,20 +1,24 @@
 #include "libarrier.h"
 
 #include "include/libarrier/match.hpp"
+#include <map>
 
-int main() {
-	using namespace libarrier;
+using namespace libarrier;
 
-	union_t<int, char, std::string> data;
+int main(int argc, char** argv) {
 
-	type_match match{[](int i) {
-		return i;
-	}, [](char c) {
-		return (int)c;
-	}, [](const std::string& s) {
-		return (int)s.size();
-	}};
-	auto ret = data | match;
+    union_t<int, char, std::string> data = '8';
+    auto ret = data | type_match {
+        [](int i) {
+            return i;
+        },
+        [](char c) {
+            return (int)c;
+        },
+        [](const std::string& s) {
+            return (int)s.size();
+        }
+    };
 
-	return 0;
+    return 0;
 }
