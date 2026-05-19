@@ -1,24 +1,16 @@
 #include "libarrier.h"
 
-#include "include/libarrier/match.hpp"
-#include <map>
+#include "include/libarrier/binarydata.hpp"
+//#include <map>
+#include <random>
+#include <format>
 
 using namespace libarrier;
 
-int main(int argc, char** argv) {
 
-    union_t<int, char, std::string> data = '8';
-    auto ret = data | type_match {
-        [](int i) {
-            return i;
-        },
-        [](char c) {
-            return (int)c;
-        },
-        [](const std::string& s) {
-            return (int)s.size();
-        }
-    };
+int main(int argc, char **argv) {
 
-    return 0;
+	
+
+  return 0;
 }

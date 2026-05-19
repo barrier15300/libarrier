@@ -16,369 +16,315 @@
 namespace libarrier {
 
 class TextfileReader {
-	using string = std::string;
-	using string_view = std::string_view;
+  using string = std::string;
+  using string_view = std::string_view;
 
-	string m_data;
-	std::vector<string_view> m_lines;
+  string m_data;
+  std::vector<string_view> m_lines;
 
 public:
+  template <class T> class lines_view_base {
+    T *m_reader = nullptr;
+    size_t m_begin = 0;
+    size_t m_count = 0;
 
-	template<class T>
-	class lines_view_base {
-		T* m_reader = nullptr;
-		size_t m_begin = 0;
-		size_t m_count = 0;
+    static constexpr bool is_const = std::is_const_v<T>;
 
-		static constexpr bool is_const = std::is_const_v<T>;
+  public:
+    using lines_view = lines_view_base<TextfileReader>;
+    using const_lines_view = lines_view_base<const TextfileReader>;
 
-	public:
+    using line_type =
+        std::conditional_t<is_const, const string_view, string_view>;
+    using lines_view_type =
+        std::conditional_t<is_const, const_lines_view, lines_view>;
 
-		using lines_view = lines_view_base<TextfileReader>;
-		using const_lines_view = lines_view_base<const TextfileReader>;
+    lines_view_base() = delete;
+    lines_view_base(const lines_view_base &) = default;
+    lines_view_base(lines_view_base &&) = default;
+    lines_view_base &operator=(const lines_view_base &) = default;
+    lines_view_base &operator=(lines_view_base &&) = default;
 
-		using line_type = std::conditional_t<is_const, const string_view, string_view>;
-		using lines_view_type = std::conditional_t<is_const, const_lines_view, lines_view>;
+    lines_view_base(T &reader)
+        : m_reader(std::addressof(reader)), m_count(m_reader->m_lines.size()) {}
+    lines_view_base(T &reader, size_t begin, size_t count)
+        : m_reader(std::addressof(reader)),
+          m_begin(std::min(begin, m_reader->m_lines.size())),
+          m_count(std::min(count, max_size())) {}
 
-		lines_view_base() = delete;
-		lines_view_base(const lines_view_base&) = default;
-		lines_view_base(lines_view_base&&) = default;
-		lines_view_base& operator=(const lines_view_base&) = default;
-		lines_view_base& operator=(lines_view_base&&) = default;
+    size_t max_size() const { return m_reader->m_lines.size() - m_begin; }
 
-		lines_view_base(T& reader) : m_reader(std::addressof(reader)), m_count(m_reader->m_lines.size()) {}
-		lines_view_base(T& reader, size_t begin, size_t count) :
-			m_reader(std::addressof(reader)),
-			m_begin(std::min(begin, m_reader->m_lines.size())),
-			m_count(std::min(count, max_size())) {}
+    line_type operator[](size_t idx)
+      requires(!is_const)
+    {
+      return m_reader->m_lines[m_begin + idx];
+    }
+    line_type at(size_t idx)
+      requires(!is_const)
+    {
+      return m_reader->m_lines.at(m_begin + idx);
+    }
+    line_type operator[](size_t idx) const
+      requires(is_const)
+    {
+      return m_reader->m_lines[m_begin + idx];
+    }
+    line_type at(size_t idx) const
+      requires(is_const)
+    {
+      return m_reader->m_lines.at(m_begin + idx);
+    }
 
-		size_t max_size() const {
-			return m_reader->m_lines.size() - m_begin;
-		}
+    auto begin()
+      requires(!is_const)
+    {
+      return m_reader->m_lines.begin() + m_begin;
+    }
+    auto end()
+      requires(!is_const)
+    {
+      return m_reader->m_lines.begin() + m_begin + m_count;
+    }
+    auto begin() const { return m_reader->m_lines.begin() + m_begin; }
+    auto end() const { return m_reader->m_lines.begin() + m_begin + m_count; }
+    auto cbegin() const { return m_reader->m_lines.cbegin() + m_begin; }
+    auto cend() const { return m_reader->m_lines.cend() + m_begin + m_count; }
+    auto rbegin()
+      requires(!is_const)
+    {
+      return std::reverse_iterator(end());
+    }
+    auto rend()
+      requires(!is_const)
+    {
+      return std::reverse_iterator(begin());
+    }
+    auto rbegin() const { return std::reverse_iterator(end()); }
+    auto rend() const { return std::reverse_iterator(begin()); }
+    auto crbegin() const { return std::reverse_iterator(end()); }
+    auto crend() const { return std::reverse_iterator(begin()); }
 
-		line_type operator[](size_t idx)
-			requires(!is_const)
-		{
-			return m_reader->m_lines[m_begin + idx];
-		}
-		line_type at(size_t idx)
-			requires(!is_const)
-		{
-			return m_reader->m_lines.at(m_begin + idx);
-		}
-		line_type operator[](size_t idx) const
-			requires(is_const)
-		{
-			return m_reader->m_lines[m_begin + idx];
-		}
-		line_type at(size_t idx) const
-			requires(is_const)
-		{
-			return m_reader->m_lines.at(m_begin + idx);
-		}
+    size_t size() const { return m_count; }
+    bool empty() const { return size() == 0; }
 
-		auto begin()
-			requires(!is_const)
-		{
-			return m_reader->m_lines.begin() + m_begin;
-		}
-		auto end()
-			requires(!is_const)
-		{
-			return m_reader->m_lines.begin() + m_begin + m_count;
-		}
-		auto begin() const {
-			return m_reader->m_lines.begin() + m_begin;
-		}
-		auto end() const {
-			return m_reader->m_lines.begin() + m_begin + m_count;
-		}
-		auto cbegin() const {
-			return m_reader->m_lines.cbegin() + m_begin;
-		}
-		auto cend() const {
-			return m_reader->m_lines.cend() + m_begin + m_count;
-		}
-		auto rbegin()
-			requires(!is_const)
-		{
-			return std::reverse_iterator(end());
-		}
-		auto rend()
-			requires(!is_const)
-		{
-			return std::reverse_iterator(begin());
-		}
-		auto rbegin() const {
-			return std::reverse_iterator(end());
-		}
-		auto rend() const {
-			return std::reverse_iterator(begin());
-		}
-		auto crbegin() const {
-			return std::reverse_iterator(end());
-		}
-		auto crend() const {
-			return std::reverse_iterator(begin());
-		}
+    line_type subdata() const {
+      size_t databegin = std::to_address(begin()->begin()) -
+                         std::to_address(m_reader->data().begin());
+      size_t dataend = std::to_address(rbegin()->end()) -
+                       std::to_address(m_reader->data().begin());
+      return line_type(m_reader->m_data).substr(databegin, dataend - databegin);
+    }
 
-		size_t size() const {
-			return m_count;
-		}
-		bool empty() const {
-			return size() == 0;
-		}
+    size_t line_of(size_t cursor) const {
+      auto sub = subdata();
+      if (cursor >= sub.size()) {
+        return line_type::npos;
+      }
+      auto it =
+          std::lower_bound(begin(), end(), sub.substr(cursor, 1),
+                           [](const line_type &line, const line_type &target) {
+                             return std::to_address(line.end()) <
+                                    std::to_address(target.begin());
+                           });
+      return std::distance(begin(), it);
+    }
+    size_t cursor_of(size_t line) const {
+      if (line >= size()) {
+        return line_type::npos;
+      }
+      return std::to_address((*this)[line].begin()) -
+             std::to_address(begin()->begin());
+    }
+    size_t line_column_of(size_t cursor) const {
+      auto line = line_of(cursor);
+      if (line == line_type::npos) {
+        return line_type::npos;
+      }
+      return cursor - cursor_of(line);
+    }
 
-		line_type subdata() const {
-			size_t databegin = std::to_address(begin()->begin()) - std::to_address(m_reader->data().begin());
-			size_t dataend = std::to_address(rbegin()->end()) - std::to_address(m_reader->data().begin());
-			return line_type(m_reader->m_data).substr(databegin, dataend - databegin);
-		}
+    template <size_t (line_type::*find_func)(line_type, size_t) const>
+    class basic_exist_info {
+      size_t m_idx;
+      size_t m_elem;
 
-		size_t line_of(size_t cursor) const {
-			auto sub = subdata();
-			if (cursor >= sub.size()) { return line_type::npos; }
-			auto it =
-				std::lower_bound(begin(), end(), sub.substr(cursor, 1), [](const line_type& line, const line_type& target) {
-				return std::to_address(line.end()) < std::to_address(target.begin());
-			});
-			return std::distance(begin(), it);
-		}
-		size_t cursor_of(size_t line) const {
-			if (line >= size()) { return line_type::npos; }
-			return std::to_address((*this)[line].begin()) - std::to_address(begin()->begin());
-		}
-		size_t line_column_of(size_t cursor) const {
-			auto line = line_of(cursor);
-			if (line == line_type::npos) { return line_type::npos; }
-			return cursor - cursor_of(line);
-		}
+    public:
+      basic_exist_info(line_type data, line_type target, size_t offset = 0)
+          : m_idx((data.*find_func)(target, offset)), m_elem(target.size()) {}
 
-		template<size_t (line_type::*find_func)(line_type, size_t) const>
-		class basic_exist_info {
-			size_t m_idx;
-			size_t m_elem;
+      explicit operator bool() const { return exist(); }
+      operator size_t() const { return idx(); }
 
-		public:
+      bool exist() const { return m_idx != line_type::npos; }
+      size_t idx() const { return m_idx; }
+      size_t elem() const { return m_elem; }
+      size_t next() const { return exist() ? m_idx + m_elem : line_type::npos; }
+    };
+    using exist_info = basic_exist_info<&line_type::find>;
+    using exist_info_r = basic_exist_info<&line_type::rfind>;
 
-			basic_exist_info(line_type data, line_type target, size_t offset = 0) :
-				m_idx((data.*find_func)(target, offset)),
-				m_elem(target.size()) {}
+    auto exist(line_type target, size_t offset = 0) const {
+      return exist_info(subdata(), target, offset);
+    }
+    auto exist_r(line_type target, size_t offset = 0) const {
+      return exist_info_r(subdata(), target, offset);
+    }
 
-			explicit operator bool() const {
-				return exist();
-			}
-			operator size_t() const {
-				return idx();
-			}
+    auto exist_all(line_type target) const {
+      std::vector<exist_info> infos;
+      size_t offset = 0;
+      while (auto info = exist(target, offset)) {
+        infos.push_back(info);
+        offset = info.next();
+      }
+      return infos;
+    }
 
-			bool exist() const {
-				return m_idx != line_type::npos;
-			}
-			size_t idx() const {
-				return m_idx;
-			}
-			size_t elem() const {
-				return m_elem;
-			}
-			size_t next() const {
-				return exist() ? m_idx + m_elem : line_type::npos;
-			}
-		};
-		using exist_info = basic_exist_info<&line_type::find>;
-		using exist_info_r = basic_exist_info<&line_type::rfind>;
+    lines_view_type sublines(size_t start,
+                             size_t count = line_type::npos) const {
+      return lines_view_type(*m_reader, m_begin + start, count);
+    }
+  };
+  using lines_view = lines_view_base<TextfileReader>;
+  using const_lines_view = lines_view_base<const TextfileReader>;
 
-		auto exist(line_type target, size_t offset = 0) const {
-			return exist_info(subdata(), target, offset);
-		}
-		auto exist_r(line_type target, size_t offset = 0) const {
-			return exist_info_r(subdata(), target, offset);
-		}
+  using exist_info = const_lines_view::exist_info;
+  using exist_info_r = const_lines_view::exist_info_r;
 
-		auto exist_all(line_type target) const {
-			std::vector<exist_info> infos;
-			size_t offset = 0;
-			while (auto info = exist(target, offset)) {
-				infos.push_back(info);
-				offset = info.next();
-			}
-			return infos;
-		}
+  friend lines_view;
+  friend const_lines_view;
 
-		lines_view_type sublines(size_t start, size_t count = line_type::npos) const {
-			return lines_view_type(*m_reader, m_begin + start, count);
-		}
-	};
-	using lines_view = lines_view_base<TextfileReader>;
-	using const_lines_view = lines_view_base<const TextfileReader>;
+  TextfileReader() = default;
+  TextfileReader(const string &path) { Read(path); }
+  TextfileReader(string_view path) { Read(path); }
+  TextfileReader(const std::filesystem::path &path) { Read(path); }
 
-	using exist_info = const_lines_view::exist_info;
-	using exist_info_r = const_lines_view::exist_info_r;
+  bool Read(const string &path) {
+    std::ifstream ifs(path, std::ios::binary | std::ios::ate);
 
-	friend lines_view;
-	friend const_lines_view;
+    if (!ifs.is_open()) {
+      return false;
+    }
 
-	TextfileReader() = default;
-	TextfileReader(const string& path) {
-		Read(path);
-	}
-	TextfileReader(string_view path) {
-		Read(path);
-	}
-	TextfileReader(const std::filesystem::path& path) {
-		Read(path);
-	}
+    auto size = ifs.tellg();
+    ifs.seekg(0, std::ios::beg);
 
-	bool Read(const string& path) {
-		std::ifstream ifs(path, std::ios::binary | std::ios::ate);
+    if (size < 0) {
+      return false;
+    }
 
-		if (!ifs.is_open()) { return false; }
+    m_data.resize(static_cast<size_t>(size));
+    ifs.read(m_data.data(), size);
 
-		auto size = ifs.tellg();
-		ifs.seekg(0, std::ios::beg);
+    ifs.close();
 
-		if (size < 0) { return false; }
+    CreateIndex();
 
-		m_data.resize(static_cast<size_t>(size));
-		ifs.read(m_data.data(), size);
+    return true;
+  }
+  bool Read(string_view path) { return Read(string(path)); }
+  bool Read(const std::filesystem::path &path) { return Read(path.string()); }
 
-		ifs.close();
+  void CreateIndex() {
+    if (empty()) {
+      return;
+    }
 
-		CreateIndex();
+    m_lines.clear();
 
-		return true;
-	}
-	bool Read(string_view path) {
-		return Read(string(path));
-	}
-	bool Read(const std::filesystem::path& path) {
-		return Read(path.string());
-	}
+    auto begin = m_data.begin();
+    auto end = m_data.end();
 
-	void CreateIndex() {
-		if (empty()) { return; }
+    using size_type = decltype(std::count(begin, end, ' '));
 
-		m_lines.clear();
+    size_type nsize = std::count(begin, end, '\n');
+    size_type rsize = std::count(begin, end, '\r');
 
-		auto begin = m_data.begin();
-		auto end = m_data.end();
+    size_t endtypeindex =
+        (nsize == rsize) ? (0)
+                         : ((rsize == 0) ? (1) : ((nsize == 0) ? (2) : (3)));
 
-		using size_type = decltype(std::count(begin, end, ' '));
+    constexpr string_view endcodetype[] = {"\r\n", "\n", "\r", ""};
+    size_type endlinecounts[] = {nsize, nsize, rsize, 0};
 
-		size_type nsize = std::count(begin, end, '\n');
-		size_type rsize = std::count(begin, end, '\r');
+    m_lines.reserve(endlinecounts[endtypeindex] + 2);
 
-		size_t endtypeindex = (nsize == rsize) ? (0) : ((rsize == 0) ? (1) : ((nsize == 0) ? (2) : (3)));
+    string_view delim = endcodetype[endtypeindex];
+    string_view refdata = m_data;
 
-		constexpr string_view endcodetype[] = {"\r\n", "\n", "\r", ""};
-		size_type endlinecounts[] = {nsize, nsize, rsize, 0};
+    size_t idxbegin = 0;
+    size_t idxend = refdata.find(delim);
+    while (idxbegin != std::string_view::npos) {
+      m_lines.push_back(refdata.substr(idxbegin, idxend - idxbegin));
+      idxbegin = (idxend == std::string_view::npos) ? (idxend)
+                                                    : (idxend + delim.size());
+      idxend = refdata.find(delim, idxbegin);
+    }
+  }
 
-		m_lines.reserve(endlinecounts[endtypeindex] + 2);
+  string_view data() { return m_data; }
+  const string_view data() const { return m_data; }
 
-		string_view delim = endcodetype[endtypeindex];
-		string_view refdata = m_data;
+  bool empty() const { return m_data.empty(); }
+  operator bool() const { return !empty(); }
 
-		size_t idxbegin = 0;
-		size_t idxend = refdata.find(delim);
-		while (idxbegin != std::string_view::npos) {
-			m_lines.push_back(refdata.substr(idxbegin, idxend - idxbegin));
-			idxbegin = (idxend == std::string_view::npos) ? (idxend) : (idxend + delim.size());
-			idxend = refdata.find(delim, idxbegin);
-		}
-	}
+  string_view operator[](size_t idx) const noexcept { return m_lines[idx]; }
+  string_view at(size_t idx) const { return m_lines.at(idx); }
 
-	string_view data() {
-		return m_data;
-	}
-	const string_view data() const {
-		return m_data;
-	}
+  auto begin() -> decltype(std::begin(m_lines)) { return std::begin(m_lines); }
+  auto end() -> decltype(std::end(m_lines)) { return std::end(m_lines); }
+  auto begin() const -> decltype(std::begin(m_lines)) {
+    return std::begin(m_lines);
+  }
+  auto end() const -> decltype(std::end(m_lines)) { return std::end(m_lines); }
+  auto cbegin() const -> decltype(std::cbegin(m_lines)) {
+    return std::cbegin(m_lines);
+  }
+  auto cend() const -> decltype(std::cend(m_lines)) {
+    return std::cend(m_lines);
+  }
+  auto rbegin() -> decltype(std::rbegin(m_lines)) {
+    return std::rbegin(m_lines);
+  }
+  auto rend() -> decltype(std::rend(m_lines)) { return std::rend(m_lines); }
+  auto rbegin() const -> decltype(std::rbegin(m_lines)) {
+    return std::rbegin(m_lines);
+  }
+  auto rend() const -> decltype(std::rend(m_lines)) {
+    return std::rend(m_lines);
+  }
+  auto crbegin() const -> decltype(std::crbegin(m_lines)) {
+    return std::crbegin(m_lines);
+  }
+  auto crend() const -> decltype(std::crend(m_lines)) {
+    return std::crend(m_lines);
+  }
 
-	bool empty() const {
-		return m_data.empty();
-	}
-	operator bool() const {
-		return !empty();
-	}
+  lines_view lines() { return lines_view(*this); }
+  const_lines_view lines() const { return const_lines_view(*this); }
 
-	string_view operator[](size_t idx) const noexcept {
-		return m_lines[idx];
-	}
-	string_view at(size_t idx) const {
-		return m_lines.at(idx);
-	}
+  size_t line_of(size_t cursor) const { return lines().line_of(cursor); }
+  size_t cursor_of(size_t line) const { return lines().cursor_of(line); }
+  size_t line_column_of(size_t cursor) const {
+    return lines().line_column_of(cursor);
+  }
 
-	auto begin() -> decltype(std::begin(m_lines)) {
-		return std::begin(m_lines);
-	}
-	auto end() -> decltype(std::end(m_lines)) {
-		return std::end(m_lines);
-	}
-	auto begin() const -> decltype(std::begin(m_lines)) {
-		return std::begin(m_lines);
-	}
-	auto end() const -> decltype(std::end(m_lines)) {
-		return std::end(m_lines);
-	}
-	auto cbegin() const -> decltype(std::cbegin(m_lines)) {
-		return std::cbegin(m_lines);
-	}
-	auto cend() const -> decltype(std::cend(m_lines)) {
-		return std::cend(m_lines);
-	}
-	auto rbegin() -> decltype(std::rbegin(m_lines)) {
-		return std::rbegin(m_lines);
-	}
-	auto rend() -> decltype(std::rend(m_lines)) {
-		return std::rend(m_lines);
-	}
-	auto rbegin() const -> decltype(std::rbegin(m_lines)) {
-		return std::rbegin(m_lines);
-	}
-	auto rend() const -> decltype(std::rend(m_lines)) {
-		return std::rend(m_lines);
-	}
-	auto crbegin() const -> decltype(std::crbegin(m_lines)) {
-		return std::crbegin(m_lines);
-	}
-	auto crend() const -> decltype(std::crend(m_lines)) {
-		return std::crend(m_lines);
-	}
+  auto exist(string_view target, size_t offset = 0) const {
+    return exist_info(m_data, target, offset);
+  }
+  auto exist_r(string_view target, size_t offset = 0) const {
+    return exist_info_r(m_data, target, offset);
+  }
 
-	lines_view lines() {
-		return lines_view(*this);
-	}
-	const_lines_view lines() const {
-		return const_lines_view(*this);
-	}
+  auto exist_all(string_view target) const { return lines().exist_all(target); }
 
-	size_t line_of(size_t cursor) const {
-		return lines().line_of(cursor);
-	}
-	size_t cursor_of(size_t line) const {
-		return lines().cursor_of(line);
-	}
-	size_t line_column_of(size_t cursor) const {
-		return lines().line_column_of(cursor);
-	}
-
-	auto exist(string_view target, size_t offset = 0) const {
-		return exist_info(m_data, target, offset);
-	}
-	auto exist_r(string_view target, size_t offset = 0) const {
-		return exist_info_r(m_data, target, offset);
-	}
-
-	auto exist_all(string_view target) const {
-		return lines().exist_all(target);
-	}
-
-	lines_view sublines(size_t start, size_t count = string_view::npos) {
-		return lines_view(*this, start, count);
-	}
-	const_lines_view sublines(size_t start, size_t count = string_view::npos) const {
-		return const_lines_view(*this, start, count);
-	}
+  lines_view sublines(size_t start, size_t count = string_view::npos) {
+    return lines_view(*this, start, count);
+  }
+  const_lines_view sublines(size_t start,
+                            size_t count = string_view::npos) const {
+    return const_lines_view(*this, start, count);
+  }
 };
 
 } // namespace libarrier

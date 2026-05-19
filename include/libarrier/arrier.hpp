@@ -1,6 +1,7 @@
 #ifndef LIBARRIER_ARRIER_HPP
 #define LIBARRIER_ARRIER_HPP
 
+#include "interface.hpp"
 //#include "binarydata.hpp"
 #include "functional.hpp"
 //#include "match.hpp"
