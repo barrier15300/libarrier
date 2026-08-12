@@ -52,12 +52,10 @@ namespace libarrier {
 
 			size_t max_size() const { return m_reader->m_lines.size() - m_begin; }
 
-			line_type operator[](size_t idx)
-				requires(!is_const) {
+			line_type operator[](size_t idx) requires(!is_const) {
 				return m_reader->m_lines[m_begin + idx];
 			}
-			line_type at(size_t idx)
-				requires(!is_const) {
+			line_type at(size_t idx) requires(!is_const) {
 				return m_reader->m_lines.at(m_begin + idx);
 			}
 			line_type operator[](size_t idx) const requires(is_const) {
@@ -112,6 +110,9 @@ namespace libarrier {
 			}
 
 			line_type subdata() const {
+				if (empty()) {
+					return line_type();
+				}
 				size_t databegin = std::to_address(begin()->begin()) - std::to_address(m_reader->data().begin());
 				size_t dataend = std::to_address(rbegin()->end()) - std::to_address(m_reader->data().begin());
 				return line_type(m_reader->m_data).substr(databegin, dataend - databegin);
@@ -181,8 +182,7 @@ namespace libarrier {
 				return infos;
 			}
 
-			lines_view_type sublines(size_t start,
-				size_t count = line_type::npos) const {
+			lines_view_type sublines(size_t start, size_t count = line_type::npos) const {
 				return lines_view_type(*m_reader, m_begin + start, count);
 			}
 		};
@@ -230,10 +230,10 @@ namespace libarrier {
 			return true;
 		}
 		bool Read(const string& path) {
-			return Read(path);
+			return Read(std::filesystem::path(path));
 		}
 		bool Read(string_view path) {
-			return Read(string(path));
+			return Read(std::filesystem::path(string(path)));
 		}
 
 		void CreateIndex() {
@@ -251,10 +251,14 @@ namespace libarrier {
 			size_type nsize = std::count(begin, end, '\n');
 			size_type rsize = std::count(begin, end, '\r');
 
-			size_t endtypeindex = (nsize == rsize) ? (0) : ((rsize == 0) ? (1) : ((nsize == 0) ? (2) : (3)));
+			size_t endtypeindex = (nsize == rsize) ? (0) : ((rsize == 0) ? (1) : ((nsize == 0) ? (2) : (string::npos)));
 
 			constexpr string_view endcodetype[] = {"\r\n", "\n", "\r", ""};
 			size_type endlinecounts[] = {nsize, nsize, rsize, 0};
+
+			if (endtypeindex == string::npos) {
+				return;
+			}
 
 			m_lines.reserve(endlinecounts[endtypeindex] + 2);
 
@@ -352,7 +356,9 @@ namespace libarrier {
 			return exist_info_r(m_data, target, offset);
 		}
 
-		auto exist_all(string_view target) const { return lines().exist_all(target); }
+		auto exist_all(string_view target) const {
+			return lines().exist_all(target);
+		}
 
 		lines_view sublines(size_t start, size_t count = string_view::npos) {
 			return lines_view(*this, start, count);
